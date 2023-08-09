@@ -5,11 +5,9 @@
 *.o
 *.ko
 *.obj
-*.elf
 
 # Linker output
 *.ilk
-*.map
 *.exp
 
 # Precompiled Headers
@@ -29,7 +27,6 @@
 *.dylib
 
 # Executables
-*.exe
 *.out
 *.app
 *.i*86
