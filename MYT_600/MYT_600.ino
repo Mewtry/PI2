@@ -7,11 +7,9 @@
 */
 /**************************************************************************/
 
-// INCLUDES
-    // LIQUIDCRYSTAL LIB
-#include <Wire.h>
+#include "Wire.h"
 #include <AccelStepper.h>
-#include <LiquidCrystal_I2C.h>
+#include "LiquidCrystal_I2C.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
@@ -87,8 +85,18 @@ static QueueHandle_t gpio_queue = NULL;
     // PRINCIPAL TASK AND IHM MONITOR (VARIABLES AND DISPLAY UPDATE, MOTOR CONTROL AND READ SENSORS)
     // SERIAL PROTOCOL CONTROL
 
-/********************* APP MAIN *********************/
-void app_main(void){
+/********************** SETUP **********************/
+void setup(void){
     // SETUP AND TASK CREATE
+    lcd.init();
+    lcd.backlight();
+    lcd.setCursor(4,0);
+    lcd.print("MYT-D600");
+    lcd.setCursor(4,1);
+    lcd.print("v: ");
+    lcd.print(versao);
 }
-
+/********************** LOOP **********************/
+void loop(void){
+    // loop principal
+}
