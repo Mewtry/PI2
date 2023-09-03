@@ -29,12 +29,7 @@
 /********************* DEFINES *********************/
 
 // MOTOR CC DA ESTEIRA
-
-
-
-
-
-
+# 34 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 // MOTOR DE PASSO DO MAGAZINE
 
 
@@ -75,10 +70,31 @@ static const char * versao = "1.0.0";
 
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_queue = 
-# 70 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 73 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
                                  __null
-# 70 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 73 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
                                      ;
+
+uint32_t ccMotorDuty = 500;
+
+ledc_timer_config_t timer = { // Confuguração do timer
+
+    .speed_mode = LEDC_LOW_SPEED_MODE, // Modo de Velocidade
+    .duty_resolution = LEDC_TIMER_12_BIT, // Resolução do ciclo de trabalho (2^13 = 8192 valores | 0 ~ 8191)
+    .timer_num = LEDC_TIMER_0, // Utilizado o TIMER 0
+    .freq_hz = 1000, // Frequência de opperação do sinal PWM
+    .clk_cfg = LEDC_AUTO_CLK // Seleção automática da fonte geradora do clock (interna ou externa)
+
+};
+ledc_channel_config_t channel_0 = { // Configuração do canal de PWM
+
+    .gpio_num = GPIO_NUM_5, // Pino de saído do PWM
+    .speed_mode = LEDC_LOW_SPEED_MODE, // Modo de velocidade
+    .channel = LEDC_CHANNEL_0, // Canal a vincular ao GPIO
+    .duty = ccMotorDuty, // Duty cicle do PWM
+    .hpoint = 0
+
+};
 
 /******************** FUNCTIONS ********************/
     // CONVEYOR MOTOR CONTROL FUNCS
@@ -88,6 +104,114 @@ static QueueHandle_t gpio_queue =
     // UART READ FUNCS
     // UART WRITE FUNCS
     // INIT SETUP FUNC
+void motorByFadeTime(){
+    digitalWrite(GPIO_NUM_18, 0x1);
+    digitalWrite(GPIO_NUM_19, 0x0);
+
+    ledc_set_fade_time_and_start(
+        channel_0.speed_mode,
+        channel_0.channel,
+        4095,
+        5000,
+        LEDC_FADE_WAIT_DONE
+    );
+
+    delay(2000);
+
+    ledc_set_fade_time_and_start(
+        channel_0.speed_mode,
+        channel_0.channel,
+        0,
+        5000,
+        LEDC_FADE_WAIT_DONE
+    );
+
+    digitalWrite(GPIO_NUM_18, 0x0);
+    digitalWrite(GPIO_NUM_19, 0x1);
+
+    ledc_set_fade_time_and_start(
+        channel_0.speed_mode,
+        channel_0.channel,
+        4095,
+        5000,
+        LEDC_FADE_WAIT_DONE
+    );
+
+    delay(2000);
+
+    ledc_set_fade_time_and_start(
+        channel_0.speed_mode,
+        channel_0.channel,
+        0,
+        5000,
+        LEDC_FADE_WAIT_DONE
+    );
+
+    digitalWrite(GPIO_NUM_18, 0x0);
+    digitalWrite(GPIO_NUM_19, 0x0);
+
+    delay(1000);
+}
+
+void motorByFadeStep(){
+
+    ledc_set_duty_and_update(channel_0.speed_mode, channel_0.channel, 0, 0);
+
+    delay(300);
+
+    digitalWrite(GPIO_NUM_18, 0x1);
+    digitalWrite(GPIO_NUM_19, 0x0);
+
+    ledc_set_fade_step_and_start(
+        channel_0.speed_mode,
+        channel_0.channel,
+        4095,
+        2,
+        1,
+        LEDC_FADE_WAIT_DONE
+    );
+
+    delay(2000);
+
+    ledc_set_fade_step_and_start(
+        channel_0.speed_mode,
+        channel_0.channel,
+        900,
+        2,
+        1,
+        LEDC_FADE_WAIT_DONE
+    );
+
+    delay(2000);
+
+    digitalWrite(GPIO_NUM_18, 0x0);
+    digitalWrite(GPIO_NUM_19, 0x1);
+
+    ledc_set_fade_step_and_start(
+        channel_0.speed_mode,
+        channel_0.channel,
+        4095,
+        2,
+        1,
+        LEDC_FADE_WAIT_DONE
+    );
+
+    delay(2000);
+
+    digitalWrite(GPIO_NUM_18, 0x0);
+    digitalWrite(GPIO_NUM_19, 0x0);
+
+    ledc_set_fade_step_and_start(
+        channel_0.speed_mode,
+        channel_0.channel,
+        0,
+        4095,
+        1,
+        LEDC_FADE_WAIT_DONE
+    );
+
+    delay(1000);
+}
 
 /******************** INTERRUPTS ********************/
     // GPIO ISR HANDLER (IHM BUTTONS, SENSORS)
@@ -99,15 +223,23 @@ static QueueHandle_t gpio_queue =
 /********************** SETUP **********************/
 void setup(void){
     // SETUP AND TASK CREATE
-    lcd.init();
-    lcd.backlight();
-    lcd.setCursor(4,0);
-    lcd.print("MYT-D600");
-    lcd.setCursor(4,1);
-    lcd.print("v: ");
-    lcd.print(versao);
+    // lcd.init();
+    // lcd.backlight();
+    // lcd.setCursor(4,0);
+    // lcd.print("MYT-D600");
+    // lcd.setCursor(4,1);
+    // lcd.print("v: ");
+    // lcd.print(versao);
+
+    ledc_timer_config(&timer);
+    ledc_channel_config(&channel_0);
+    ledc_fade_func_install(0);
+
+    pinMode(GPIO_NUM_18, 0x03);
+    pinMode(GPIO_NUM_19, 0x03);
 }
 /********************** LOOP **********************/
 void loop(void){
-    // loop principal
+
+    motorByFadeStep();
 }
