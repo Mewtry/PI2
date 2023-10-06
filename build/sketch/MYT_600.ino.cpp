@@ -41,11 +41,13 @@
 #define MAGAZINE_SPEED  96
 
 // SENSOR DE COR
-#define TCS230_S0_PIN  GPIO_NUM_25
-#define TCS230_S1_PIN  GPIO_NUM_26
-#define TCS230_S2_PIN  GPIO_NUM_27
-#define TCS230_S3_PIN  GPIO_NUM_14
-#define TCS230_OUT_PIN GPIO_NUM_13
+#define TCS230_S0_PIN  GPIO_NUM_25 // Output frequency scaling S0
+#define TCS230_S1_PIN  GPIO_NUM_26 // Output frequency scaling S1
+#define TCS230_S2_PIN  GPIO_NUM_27 // Filter selection S2
+#define TCS230_S3_PIN  GPIO_NUM_14 // Filter selection S3
+#define TCS230_OE_PIN  GPIO_NUM_12 // Output Enable Pin
+#define TCS230_OUT_PIN GPIO_NUM_13 // Output Sensor
+#define TCS230_RGB_SIZE 3
 
 // DISPLAY LCD I2C
 #define SDA_LCD_PIN GPIO_NUM_21
@@ -73,6 +75,30 @@ static const char * versao = "1.0.0";
 
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_queue = NULL;
+typedef struct
+{
+  int32_t value[TCS230_RGB_SIZE];  ///< One element each for R, G and B raw data readings
+} sensorData;
+
+typedef struct
+{
+  uint8_t value[TCS230_RGB_SIZE];  ///< One element each for RGB evaluated color data (RGB value 0-255 or other)
+} colorData;
+
+volatile unsigned long pulseCounter = 0;
+int timeReadPulses = 200; // Tempo em ms que será contato pulsos da saída do sensor para execução de um leitura de frequência
+
+sensorData rawData;
+sensorData rawDark;
+sensorData rawWhite;
+
+colorData rgb;
+
+const char* colorsPrintable[TCS230_RGB_SIZE] = {"RED  ", "GREEN", "BLUE "};
+enum colors {TCS230_RGB_R, TCS230_RGB_G, TCS230_RGB_B, TCS230_RGB_X};
+enum freq {TCS230_FREQ_HI, TCS230_FREQ_MID, TCS230_FREQ_LO, TCS230_FREQ_OFF};
+
+
 
 uint32_t ccMotorDuty = 500;
 
@@ -95,6 +121,36 @@ ledc_channel_config_t channel_0 = {             // Configuração do canal de PW
 
 };
 
+/******************** INTERRUPTS ********************/
+    // GPIO ISR HANDLER (IHM BUTTONS, SENSORS)
+
+#line 148 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void beginTCS230();
+#line 170 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void setEnableTCS230(bool b);
+#line 174 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void setFrequencyTCS230(uint8_t f);
+#line 185 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void setFilterTCS230(uint8_t c);
+#line 196 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void RGBTransformation();
+#line 217 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void readRGB();
+#line 232 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void motorByFadeTime();
+#line 281 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void motorByFadeStep();
+#line 346 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void setup(void);
+#line 368 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void loop(void);
+#line 125 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void IRAM_ATTR pulseColorSensor(){
+    if(pulseCounter < 4000000000){
+        pulseCounter++;
+    }
+} // end pulseColorSensor
+
 /******************** FUNCTIONS ********************/
     // CONVEYOR MOTOR CONTROL FUNCS
     // MAGAZINE MOTOR CONTROL FUNCS
@@ -103,15 +159,99 @@ ledc_channel_config_t channel_0 = {             // Configuração do canal de PW
     // UART READ FUNCS
     // UART WRITE FUNCS
     // INIT SETUP FUNC
-#line 104 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
-void motorByFadeTime();
-#line 153 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
-void motorByFadeStep();
-#line 221 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
-void setup(void);
-#line 239 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
-void loop(void);
-#line 104 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+
+/********************* TCS230 Configurações **********************/    
+// S0  |S1 |Output Freq Scaling | |S2  |S3 |Photodiode Selection  |
+// :--:|--:|:-------------------| |:--:|--:|:---------------------|
+// L   |L  |Power Down          | |L   |L  |Red                   |
+// L   |H  |2%                  | |L   |H  |Blue                  |
+// H   |L  |20%                 | |H   |L  |Clear (no filter)     |
+// H   |H  |100%                | |H   |H  |Green                 |
+/*****************************************************************/
+void beginTCS230(){
+    pinMode(TCS230_S0_PIN, OUTPUT);
+    pinMode(TCS230_S1_PIN, OUTPUT);
+    pinMode(TCS230_S2_PIN, OUTPUT);
+    pinMode(TCS230_S3_PIN, OUTPUT);
+    pinMode(TCS230_OE_PIN, OUTPUT);
+    pinMode(TCS230_OUT_PIN, INPUT);
+
+    setEnableTCS230(false);
+    setFrequencyTCS230(TCS230_FREQ_HI);
+
+    rawDark.value[TCS230_RGB_R] = 18091;
+    rawDark.value[TCS230_RGB_G] = 14092;
+    rawDark.value[TCS230_RGB_B] = 19023;
+
+    rawWhite.value[TCS230_RGB_R] = 219059;
+    rawWhite.value[TCS230_RGB_G] = 210688;
+    rawWhite.value[TCS230_RGB_B] = 285216;
+
+    pulseCounter = 0;
+}
+
+void setEnableTCS230(bool b){
+    digitalWrite(TCS230_OUT_PIN, (b) ? LOW : HIGH);
+}
+
+void setFrequencyTCS230(uint8_t f){
+    switch (f)
+    {
+    case TCS230_FREQ_HI:  digitalWrite(TCS230_S0_PIN, HIGH); digitalWrite(TCS230_S1_PIN, HIGH); break;
+    case TCS230_FREQ_MID: digitalWrite(TCS230_S0_PIN, HIGH); digitalWrite(TCS230_S1_PIN, LOW);  break;
+    case TCS230_FREQ_LO:  digitalWrite(TCS230_S0_PIN, LOW);  digitalWrite(TCS230_S1_PIN, HIGH); break;
+    case TCS230_FREQ_OFF: digitalWrite(TCS230_S0_PIN, LOW);  digitalWrite(TCS230_S1_PIN, LOW);  break;
+    default: break;
+    }
+}
+
+void setFilterTCS230(uint8_t c){
+    switch (c)
+    {
+    case TCS230_RGB_R: digitalWrite(TCS230_S2_PIN, LOW);  digitalWrite(TCS230_S3_PIN, LOW);  break;
+    case TCS230_RGB_G: digitalWrite(TCS230_S2_PIN, HIGH); digitalWrite(TCS230_S3_PIN, HIGH); break;
+    case TCS230_RGB_B: digitalWrite(TCS230_S2_PIN, LOW);  digitalWrite(TCS230_S3_PIN, HIGH); break;
+    case TCS230_RGB_X: digitalWrite(TCS230_S2_PIN, HIGH); digitalWrite(TCS230_S3_PIN, LOW);  break; // no filter
+    default: break;
+    }
+}
+
+void RGBTransformation(){
+    int32_t x;
+
+    for (uint8_t i=0; i<TCS230_RGB_SIZE; i++)
+    {
+        // Famosa regra de 3
+        x = (rawData.value[i] - rawDark.value[i]) * 255;
+        x /= (rawWhite.value[i] - rawDark.value[i]);
+
+        // copia o resultado para as estruturas globais
+        if (x < 0) rgb.value[i] = 0; 
+        else if (x > 255) rgb.value[i] = 255;
+        else rgb.value[i] = x;
+    }
+    printf("%s: RGB(%d, %d, %d)\n", TCS230_TAG, 
+                                    rgb.value[TCS230_RGB_R], 
+                                    rgb.value[TCS230_RGB_G], 
+                                    rgb.value[TCS230_RGB_B]
+    );
+}
+
+void readRGB(){
+    for(uint8_t i=0; i<TCS230_RGB_SIZE; i++){
+        pulseCounter = 0;
+        setFilterTCS230(i);
+        setEnableTCS230(true);
+        attachInterrupt(TCS230_OUT_PIN, pulseColorSensor, RISING); // Habilita interrupção por borda de subida no pino de saída do sensor de cor
+        vTaskDelay(timeReadPulses / portTICK_PERIOD_MS);
+        setEnableTCS230(false);
+        detachInterrupt(TCS230_OUT_PIN);
+        rawData.value[i] = 1000 * pulseCounter / timeReadPulses;
+        printf("%s: Raw %s %d\n", TCS230_TAG, colorsPrintable[i], rawData.value[i]);
+    }
+        RGBTransformation();
+}
+/******************************************************************/
 void motorByFadeTime(){
     digitalWrite(CC_MOTOR_IN1, HIGH);
     digitalWrite(CC_MOTOR_IN2, LOW);
@@ -221,9 +361,6 @@ void motorByFadeStep(){
     delay(1000);
 }
 
-/******************** INTERRUPTS ********************/
-    // GPIO ISR HANDLER (IHM BUTTONS, SENSORS)
-
 /********************** TASKS ***********************/
     // PRINCIPAL TASK AND IHM MONITOR (VARIABLES AND DISPLAY UPDATE, MOTOR CONTROL AND READ SENSORS)
     // SERIAL PROTOCOL CONTROL
@@ -231,6 +368,10 @@ void motorByFadeStep(){
 /********************** SETUP **********************/
 void setup(void){
     // SETUP AND TASK CREATE
+    Serial.begin(115200);
+    beginTCS230();
+
+
     // lcd.init();
     // lcd.backlight();
     // lcd.setCursor(4,0);
@@ -239,15 +380,16 @@ void setup(void){
     // lcd.print("v: ");
     // lcd.print(versao);
 
-    ledc_timer_config(&timer);
-    ledc_channel_config(&channel_0);
-    ledc_fade_func_install(0);
+    // ledc_timer_config(&timer);
+    // ledc_channel_config(&channel_0);
+    // ledc_fade_func_install(0);
 
-    pinMode(CC_MOTOR_IN1, OUTPUT);
-    pinMode(CC_MOTOR_IN2, OUTPUT);
+    // pinMode(CC_MOTOR_IN1, OUTPUT);
+    // pinMode(CC_MOTOR_IN2, OUTPUT);
 }
 /********************** LOOP **********************/
 void loop(void){
-
-    motorByFadeStep();
+    readRGB();
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // motorByFadeStep();
 }
