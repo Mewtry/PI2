@@ -224,7 +224,7 @@ void readRGB(){
         setEnableTCS230(false);
         detachInterrupt(GPIO_NUM_13 /* Output Sensor*/);
         rawData.value[i] = 1000 * pulseCounter / timeReadPulses;
-        printf("%s: Raw %s %d\n", TCS230_TAG, colorsPrintable[i], rawData.value[i]);
+        //printf("%s: Raw %s %d\n", TCS230_TAG, colorsPrintable[i], rawData.value[i]);
     }
         RGBTransformation();
 }
