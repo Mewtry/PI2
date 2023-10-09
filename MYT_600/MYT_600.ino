@@ -72,7 +72,8 @@ static const char * MAGAZINE_TAG = "MAGAZINE";
 static const char * versao = "1.0.0";
 
 static QueueHandle_t uart_queue;
-static QueueHandle_t gpio_queue = NULL;
+static QueueHandle_t gpio_event_queue = NULL;
+
 typedef struct
 {
   int32_t value[TCS230_RGB_SIZE];  ///< One element each for R, G and B raw data readings
@@ -127,6 +128,17 @@ void IRAM_ATTR pulseColorSensor(){
         pulseCounter++;
     }
 } // end pulseColorSensor
+
+static void IRAM_ATTR gpio_isr_handler(void *arg){
+    if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE){
+
+        uint32_t gpio_num = (uint32_t) arg;
+        xQueueSendFromISR(gpio_event_queue, &gpio_num, NULL);
+
+    }else{
+        xQueueReset(gpio_event_queue);
+    }
+}
 
 /******************** FUNCTIONS ********************/
     // CONVEYOR MOTOR CONTROL FUNCS
@@ -207,11 +219,11 @@ void RGBTransformation(){
         else if (x > 255) rgb.value[i] = 255;
         else rgb.value[i] = x;
     }
-    printf("%s: RGB(%d, %d, %d)\n", TCS230_TAG, 
-                                    rgb.value[TCS230_RGB_R], 
-                                    rgb.value[TCS230_RGB_G], 
-                                    rgb.value[TCS230_RGB_B]
-    );
+    // printf("%s: RGB(%d, %d, %d)\n", TCS230_TAG, 
+    //                                 rgb.value[TCS230_RGB_R], 
+    //                                 rgb.value[TCS230_RGB_G], 
+    //                                 rgb.value[TCS230_RGB_B]
+    // );
 }
 
 void readRGB(){
