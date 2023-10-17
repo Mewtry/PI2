@@ -33,7 +33,7 @@ enum id_states {TCS230_READY, TCS230_READING};
 const uint8_t RGB_SIZE = 3;  // Limit index of RGB components
 const uint8_t NO_PIN = 0xff; // Default value for pins that not defined
 const uint8_t DARK_SENSETIVE = 120; // Limite para entender como preto em comparação ao total entre os valores RGB
-const uint8_t WHITE_SENSETIVE = 650; // Limite para entender como branco em comparação ao total entre os valores RGB
+const uint16_t WHITE_SENSETIVE = 650; // Limite para entender como branco em comparação ao total entre os valores RGB
 
 // Sensor data structure type. Contains the RGB raw data from sensor.
 typedef struct {
@@ -52,11 +52,11 @@ class TCS230 {
     uint8_t _S2;            // photodiode filter selection S2 pin
     uint8_t _S3;            // photodiode filter selection S3 pin
     uint8_t _OE;            // output enable pin
-    uint8_t _OUT;           // output frequency pin
+    gpio_num_t _OUT;        // output frequency pin
     uint8_t _readTime;      // time of sampling in ms
     uint8_t _freqSet;       // current frequency setting
     uint8_t _readState;     // state of class reader
-    static volatile uint32_t _pulseCounter; // pulse counter of frequency output from sensor
+    volatile uint32_t _pulseCounter; // pulse counter of frequency output from sensor
 
     sensorData _fd;         // dark calibration parameters raw data
     sensorData _fw;         // white calibration parameters raw data
@@ -67,44 +67,31 @@ class TCS230 {
     void initialize(void);                  // initialize variables 
     void RGBTransformation(void);           // convert the raw data structure to rgb data structure
     void setFrequencyInternal(uint8_t f);   // internal function for frequency prescaler
-    static void pulseCounterIntr(void);
+    static void pulseCounterIntr(void * data);
 
     public:
-
-    TCS230(uint8_t out, uint8_t s2, uint8_t s3);
-    TCS230(uint8_t out, uint8_t s2, uint8_t s3, uint8_t oe);
-    TCS230(uint8_t out, uint8_t s2, uint8_t s3, uint8_t s0, uint8_t s1);
-    TCS230(uint8_t out, uint8_t s2, uint8_t s3, uint8_t s0, uint8_t s1, uint8_t oe);
+    TCS230(gpio_num_t out, uint8_t s2, uint8_t s3);
+    TCS230(gpio_num_t out, uint8_t s2, uint8_t s3, uint8_t oe);
+    TCS230(gpio_num_t out, uint8_t s2, uint8_t s3, uint8_t s0, uint8_t s1);
+    TCS230(gpio_num_t out, uint8_t s2, uint8_t s3, uint8_t s0, uint8_t s1, uint8_t oe);
 
     void begin(void);
     ~TCS230(void);
 
     // Methods for hardware and object control
-
     void setFilter(uint8_t f);
-
     void setFrequency(uint8_t f);
-
     void setEnable(bool b);
-
     void setSampling(uint8_t t);
-
     void setDarkCal(sensorData *d);
-    
     void setWhiteCal(sensorData *d);
 
     // Methods for reading sensor data
-
     void getRGB(colorData *rgb);
-
     void getRaw(sensorData *d);
-
     uint32_t readSingle(void);
-
     void read(void);
-
     bool available(void);
-
     char * getColorToString(void);
 };
 

@@ -58,7 +58,7 @@
 
 /******************** INSTANCES ********************/
 
-volatile uint32_t TCS230::_pulseCounter;
+// volatile uint32_t TCS230::_pulseCounter;
 
 TCS230 tcs(
     TCS230_OUT_PIN, 
@@ -87,8 +87,25 @@ static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = NULL;
 
 // const char* colorsPrintable[TCS230_RGB_SIZE] = {"RED  ", "GREEN", "BLUE "};
+// typedef struct {
+//     uint32_t value[3];
+// } sensorData;
+
+// typedef struct {
+//     uint8_t value[3];
+// } colorData;
+// volatile uint32_t  pulseCounter = 0;
+// sensorData _fd;         // dark calibration parameters raw data
+// sensorData _fw;         // white calibration parameters raw data
+
+// sensorData _fo;         // current raw data from sensor reading
+// colorData _rgb;         // current rgb data from sensor reading
+
+sensorData raw;
+colorData rgb;
 
 uint32_t ccMotorDuty = 500;
+
 
 ledc_timer_config_t timer = {                   // Confuguração do timer
 
@@ -112,6 +129,12 @@ ledc_channel_config_t channel_0 = {             // Configuração do canal de PW
 /******************** INTERRUPTS ********************/
     // GPIO ISR HANDLER (IHM BUTTONS, SENSORS)
 
+// static void  IRAM_ATTR pulseCounterIntr(void){
+//     if(pulseCounter < 4000000000){
+//         pulseCounter++;
+//     }
+// }
+
 static void IRAM_ATTR gpio_isr_handler(void *arg){
     if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE){
 
@@ -131,6 +154,35 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
     // UART READ FUNCS
     // UART WRITE FUNCS
     // INIT SETUP FUNC
+    // void RGBTransformation(void) {
+    //     int32_t x;
+
+    //     for (uint8_t i=0; i<3; i++) {
+    //         // Famosa regra de 3
+    //         x = (_fo.value[i] - _fd.value[i]) * 255;
+    //         x /= (_fw.value[i] - _fd.value[i]);
+
+    //         // copia o resultado para as estruturas globais
+    //         if (x < 0) _rgb.value[i] = 0; 
+    //         else if (x > 255) _rgb.value[i] = 255;
+    //         else _rgb.value[i] = x;
+    //     }
+    // }
+
+    // void read(void) {
+    //     //_readState = TCS230_READING;
+    //     for(uint8_t i=0; i<3; i++) {
+    //         pulseCounter = 0;
+    //         digitalWrite(TCS230_OE_PIN, LOW);	// reverse logic
+    //         attachInterrupt(TCS230_OUT_PIN, pulseCounterIntr, RISING); // Habilita interrupção por borda de subida no pino de saída do sensor de cor
+    //         vTaskDelay(500 / portTICK_PERIOD_MS);
+    //         digitalWrite(TCS230_OE_PIN, HIGH);
+    //         detachInterrupt(TCS230_OUT_PIN);
+    //         _fo.value[i] = 1000 * pulseCounter / 500;
+    //     }
+    //     //_readState = TCS230_READY;
+    //     RGBTransformation();
+    // }
 
 /******************************************************************/
 void motorByFadeTime(){
@@ -280,7 +332,13 @@ void setup(void){
 /********************** LOOP **********************/
 void loop(void){
     tcs.read();
-    printf("TCS230: Color Read -> %s\n", tcs.getColorToString());
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    tcs.getRaw(&raw);
+    tcs.getRGB(&rgb);
+    
+    printf("TCS230: RAW(%d, %d, %d)\n", raw.value[RED], raw.value[GREEN], raw.value[BLUE]);
+    printf("TCS230: RGB(%d, %d, %d)\n", rgb.value[RED], rgb.value[GREEN], rgb.value[BLUE]);
+
+    printf("TCS230: Color Read -> %s\n\n", tcs.getColorToString());
+    vTaskDelay(250 / portTICK_PERIOD_MS);
     // motorByFadeStep();
 }

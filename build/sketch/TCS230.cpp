@@ -21,9 +21,10 @@
 #define DUMPS(s)    
 #endif
 
-void IRAM_ATTR TCS230::pulseCounterIntr(void){
-    if(_pulseCounter < 4000000000){
-        _pulseCounter++;
+void IRAM_ATTR TCS230::pulseCounterIntr(void * data){
+    TCS230* dt = (TCS230*)data;
+    if(dt->_pulseCounter < 4000000000){
+        dt->_pulseCounter += 1;
     }
 }
 
@@ -33,7 +34,7 @@ void TCS230::initialize(void) {
     _S1  = NO_PIN;
     _S2  = NO_PIN;
     _S3  = NO_PIN;
-    _OUT = NO_PIN;
+    _OUT = GPIO_NUM_NC;
     _readTime = 100;
     _pulseCounter = 0;
     _freqSet = TCS230_FREQ_HI;
@@ -45,14 +46,14 @@ void TCS230::initialize(void) {
     }
 }
 
-TCS230::TCS230(uint8_t out, uint8_t s2, uint8_t s3) {
+TCS230::TCS230(gpio_num_t out, uint8_t s2, uint8_t s3) {
     initialize();
     _OUT = out;
     _S2  = s2;
     _S3  = s3;
 }
 
-TCS230::TCS230(uint8_t out, uint8_t s2, uint8_t s3, uint8_t oe) {
+TCS230::TCS230(gpio_num_t out, uint8_t s2, uint8_t s3, uint8_t oe) {
     initialize();
     _OUT = out;
     _S2  = s2;
@@ -60,7 +61,7 @@ TCS230::TCS230(uint8_t out, uint8_t s2, uint8_t s3, uint8_t oe) {
     _OE  = oe;
 }
 
-TCS230::TCS230(uint8_t out, uint8_t s2, uint8_t s3, uint8_t s0, uint8_t s1) {
+TCS230::TCS230(gpio_num_t out, uint8_t s2, uint8_t s3, uint8_t s0, uint8_t s1) {
     initialize();
     _OUT = out;
     _S0  = s0;
@@ -69,7 +70,7 @@ TCS230::TCS230(uint8_t out, uint8_t s2, uint8_t s3, uint8_t s0, uint8_t s1) {
     _S3  = s3;
 }
 
-TCS230::TCS230(uint8_t out, uint8_t s2, uint8_t s3, uint8_t s0, uint8_t s1, uint8_t oe) {
+TCS230::TCS230(gpio_num_t out, uint8_t s2, uint8_t s3, uint8_t s0, uint8_t s1, uint8_t oe) {
     initialize();
     _OUT = out;
     _S0  = s0;
@@ -82,15 +83,28 @@ TCS230::TCS230(uint8_t out, uint8_t s2, uint8_t s3, uint8_t s0, uint8_t s1, uint
 TCS230::~TCS230(void) {}
 
 void TCS230::begin() {
-    if (_OUT != NO_PIN) pinMode(_OUT, OUTPUT);
     if (_S0 != NO_PIN) pinMode(_S0, OUTPUT);
     if (_S1 != NO_PIN) pinMode(_S1, OUTPUT);
     if (_S2 != NO_PIN) pinMode(_S2, OUTPUT);
     if (_S3 != NO_PIN) pinMode(_S3, OUTPUT);
     if (_OE != NO_PIN) pinMode(_OE, OUTPUT);
+    if (_OUT != GPIO_NUM_NC) {
+        gpio_config_t io_conf {
+            .pin_bit_mask  = 1ULL<<_OUT,
+            .mode          = GPIO_MODE_INPUT,
+            .pull_up_en    = GPIO_PULLUP_DISABLE,
+            .pull_down_en  = GPIO_PULLDOWN_DISABLE,
+            .intr_type     = GPIO_INTR_POSEDGE
+        };
+        ESP_ERROR_CHECK(gpio_config(&io_conf));
+        (void)gpio_install_isr_service(0); // ignore errors as it could be already installed
+        ESP_ERROR_CHECK(gpio_isr_handler_add(_OUT, pulseCounterIntr, this));
+        gpio_intr_disable(_OUT);
+    }
 
     setEnable(false);
     setFrequencyInternal(_freqSet);
+
 
     DUMPS("\nLibrary begin initialised");
 }
@@ -206,10 +220,12 @@ uint32_t TCS230::readSingle(void) {
     _readState = TCS230_READING;
     _pulseCounter = 0;
     setEnable(true);
-    attachInterrupt(_OUT, pulseCounterIntr, RISING); // Habilita interrupção por borda de subida no pino de saída do sensor de cor
+    // attachInterrupt(_OUT, pulseCounterIntr, RISING); // Habilita interrupção por borda de subida no pino de saída do sensor de cor
+    gpio_intr_enable(_OUT);
     vTaskDelay(_readTime / portTICK_PERIOD_MS);
     setEnable(false);
-    detachInterrupt(_OUT);
+    // detachInterrupt(_OUT);
+    gpio_intr_disable(_OUT);
     _readState = TCS230_READY;
     return ( 1000 * _pulseCounter / _readTime);
 }
@@ -219,10 +235,12 @@ void TCS230::read(void) {
     for(uint8_t i=0; i<RGB_SIZE; i++) {
         _pulseCounter = 0;
         setEnable(true);
-        attachInterrupt(_OUT, pulseCounterIntr, RISING); // Habilita interrupção por borda de subida no pino de saída do sensor de cor
+        // attachInterrupt(_OUT, pulseCounterIntr, RISING); // Habilita interrupção por borda de subida no pino de saída do sensor de cor
+        gpio_intr_enable(_OUT);
         vTaskDelay(_readTime / portTICK_PERIOD_MS);
         setEnable(false);
-        detachInterrupt(_OUT);
+        // detachInterrupt(_OUT);
+        gpio_intr_disable(_OUT);
         _fo.value[i] = 1000 * _pulseCounter / _readTime;
     }
     _readState = TCS230_READY;
