@@ -61,7 +61,7 @@ TCS230 tcs(
     GPIO_NUM_12 /* Output Enable Pin*/
 );
 
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 AccelStepper magazine(AccelStepper::DRIVER, GPIO_NUM_16, GPIO_NUM_17);
 
@@ -82,26 +82,22 @@ static QueueHandle_t gpio_event_queue =
 # 87 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
                                            ;
 
-// const char* colorsPrintable[TCS230_RGB_SIZE] = {"RED  ", "GREEN", "BLUE "};
-// typedef struct {
-//     uint32_t value[3];
-// } sensorData;
-
-// typedef struct {
-//     uint8_t value[3];
-// } colorData;
-// volatile uint32_t  pulseCounter = 0;
-// sensorData _fd;         // dark calibration parameters raw data
-// sensorData _fw;         // white calibration parameters raw data
-
-// sensorData _fo;         // current raw data from sensor reading
-// colorData _rgb;         // current rgb data from sensor reading
+uint32_t ccMotorDuty = 500;
 
 sensorData raw;
 colorData rgb;
 
-uint32_t ccMotorDuty = 500;
-
+// create a block caracter for lcd
+uint8_t block[8] = {
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111
+};
 
 ledc_timer_config_t timer = { // Confuguração do timer
 
@@ -125,20 +121,14 @@ ledc_channel_config_t channel_0 = { // Configuração do canal de PWM
 /******************** INTERRUPTS ********************/
     // GPIO ISR HANDLER (IHM BUTTONS, SENSORS)
 
-// static void  IRAM_ATTR pulseCounterIntr(void){
-//     if(pulseCounter < 4000000000){
-//         pulseCounter++;
-//     }
-// }
-
 static void __attribute__((section(".iram1" "." "28"))) gpio_isr_handler(void *arg){
     if(xQueueIsQueueFullFromISR(gpio_event_queue) == ( ( BaseType_t ) 0 )){
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueGenericSendFromISR( ( gpio_event_queue ), ( &gpio_num ), ( 
-# 142 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 132 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
        __null 
-# 142 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 132 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
        ), ( ( BaseType_t ) 0 ) );
 
     }else{
@@ -154,35 +144,6 @@ static void __attribute__((section(".iram1" "." "28"))) gpio_isr_handler(void *a
     // UART READ FUNCS
     // UART WRITE FUNCS
     // INIT SETUP FUNC
-    // void RGBTransformation(void) {
-    //     int32_t x;
-
-    //     for (uint8_t i=0; i<3; i++) {
-    //         // Famosa regra de 3
-    //         x = (_fo.value[i] - _fd.value[i]) * 255;
-    //         x /= (_fw.value[i] - _fd.value[i]);
-
-    //         // copia o resultado para as estruturas globais
-    //         if (x < 0) _rgb.value[i] = 0; 
-    //         else if (x > 255) _rgb.value[i] = 255;
-    //         else _rgb.value[i] = x;
-    //     }
-    // }
-
-    // void read(void) {
-    //     //_readState = TCS230_READING;
-    //     for(uint8_t i=0; i<3; i++) {
-    //         pulseCounter = 0;
-    //         digitalWrite(TCS230_OE_PIN, LOW);	// reverse logic
-    //         attachInterrupt(TCS230_OUT_PIN, pulseCounterIntr, RISING); // Habilita interrupção por borda de subida no pino de saída do sensor de cor
-    //         vTaskDelay(500 / portTICK_PERIOD_MS);
-    //         digitalWrite(TCS230_OE_PIN, HIGH);
-    //         detachInterrupt(TCS230_OUT_PIN);
-    //         _fo.value[i] = 1000 * pulseCounter / 500;
-    //     }
-    //     //_readState = TCS230_READY;
-    //     RGBTransformation();
-    // }
 
 /******************************************************************/
 void motorByFadeTime(){
@@ -301,26 +262,51 @@ void motorByFadeStep(){
 /********************** SETUP **********************/
 void setup(void){
     // SETUP AND TASK CREATE
-    Serial.begin(115200);
-    tcs.begin();
-    tcs.setSampling(500);
+    // Serial.begin(115200);
+    // tcs.begin();
+    // tcs.setSampling(500);
 
-    sensorData darkCal = {
-        .value = {18091, 14092, 19023}
-    };
-    sensorData whiteCal = {
-        .value = {219059, 210688, 285216}
-    };
+    // sensorData darkCal = {
+    //     .value = {18091, 14092, 19023}
+    // };
+    // sensorData whiteCal = {
+    //     .value = {219059, 210688, 285216}
+    // };
 
-    tcs.setDarkCal(&darkCal);
-    tcs.setWhiteCal(&whiteCal);
-    // lcd.init();
-    // lcd.backlight();
-    // lcd.setCursor(4,0);
-    // lcd.print("MYT-D600");
-    // lcd.setCursor(4,1);
-    // lcd.print("v: ");
-    // lcd.print(versao);
+    // tcs.setDarkCal(&darkCal);
+    // tcs.setWhiteCal(&whiteCal);
+
+    lcd.init();
+
+    lcd.createChar(0, block);
+
+    lcd.backlight();
+    lcd.setCursor(6,0);
+    lcd.print("MYT-D600");
+    lcd.setCursor(6,1);
+    lcd.print("v: ");
+    lcd.print(versao);
+
+    // create a loading bar to show the user that the system is starting
+    lcd.setCursor(4,2);
+    lcd.print("Iniciando...");
+    for(int i = 0; i < 20; i++){
+        lcd.setCursor(i,3);
+        lcd.write(255);
+        delay(100);
+    }
+    delay(1000);
+
+    lcd.clear();
+
+    lcd.setCursor(0,0);
+    lcd.print("MONITOR|SENSOR| MAG");
+    lcd.setCursor(7,1);
+    lcd.print("|R: 255| ~VR");
+    lcd.setCursor(7,2);
+    lcd.print("|G: 255|  VD");
+    lcd.setCursor(7,3);
+    lcd.print("|B: 255|  AZ");
 
     // ledc_timer_config(&timer);
     // ledc_channel_config(&channel_0);
@@ -331,18 +317,21 @@ void setup(void){
 }
 /********************** LOOP **********************/
 void loop(void){
-    tcs.read();
-    tcs.getRaw(&raw);
-    tcs.getRGB(&rgb);
+    // tcs.read();
+    // tcs.getRaw(&raw);
+    // tcs.getRGB(&rgb);
 
-    printf("TCS230: RAW(%d, %d, %d)\n", raw.value[RED], raw.value[GREEN], raw.value[BLUE]);
-    printf("TCS230: RGB(%d, %d, %d)\n", rgb.value[RED], rgb.value[GREEN], rgb.value[BLUE]);
+    // printf("TCS230: RAW(%d, %d, %d)\n", raw.value[RED], raw.value[GREEN], raw.value[BLUE]);
+    // printf("TCS230: RGB(%d, %d, %d)\n", rgb.value[RED], rgb.value[GREEN], rgb.value[BLUE]);
 
-    printf("TCS230: Color Read -> %s\n\n", tcs.getColorToString());
-    vTaskDelay(250 / ( ( TickType_t ) 1000 / ( 
-# 342 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
-                    1000 
-# 342 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
-                    ) ));
+    // printf("TCS230: Color Read -> %s\n\n", tcs.getColorToString());
+    // vTaskDelay(250 / portTICK_PERIOD_MS);
     // motorByFadeStep();
+
+    // Tela 1
+
+
+
+
+
 }
