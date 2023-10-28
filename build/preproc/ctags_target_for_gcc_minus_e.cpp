@@ -1,4 +1,4 @@
-# 1 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 /**************************************************************************/
 /**
 
@@ -11,26 +11,26 @@
  * @see     www.linkedin.com/in/theo-pires-a34b33183/
 
 */
-# 8 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 8 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 /**************************************************************************/
 
-# 11 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 12 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 13 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 14 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 15 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 16 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 11 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
+# 12 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
+# 13 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
+# 14 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
+# 15 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
+# 16 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
 
-# 18 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 19 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 18 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
+# 19 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
 
-# 21 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 22 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 21 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
+# 22 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
 
 /********************* DEFINES *********************/
 
 // MOTOR CC DA ESTEIRA
-# 35 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 35 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 // MOTOR DE PASSO DO MAGAZINE
 
 
@@ -39,7 +39,7 @@
 
 
 // SENSOR DE COR
-# 51 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 51 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 // DISPLAY LCD I2C
 
 
@@ -77,9 +77,9 @@ static const char * versao = "1.0.0";
 
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = 
-# 87 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 87 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
                                        __null
-# 87 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 87 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
                                            ;
 
 uint32_t ccMotorDuty = 500;
@@ -114,9 +114,9 @@ static void __attribute__((section(".iram1" "." "28"))) gpio_isr_handler(void *a
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueGenericSendFromISR( ( gpio_event_queue ), ( &gpio_num ), ( 
-# 120 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 120 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
        __null 
-# 120 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 120 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
        ), ( ( BaseType_t ) 0 ) );
 
     }else{
@@ -135,42 +135,39 @@ static void __attribute__((section(".iram1" "." "28"))) gpio_isr_handler(void *a
 
 void menuPrincipal(){
     lcd.clear();
+    lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("~ 1 ACIONAMENTOS");
+    lcd.print("~ 1.ACIONAMENTOS");
     lcd.setCursor(0,1);
-    lcd.print("  2 PROG ALUNO");
+    lcd.print("  2.PROG ALUNO");
     lcd.setCursor(0,2);
-    lcd.print("  3 CALIBRACAO");
+    lcd.print("  3.CALIBRACAO");
     lcd.setCursor(0,3);
-    lcd.print("  4 CREDITOS");
-    lcd.setCursor(0,0);
-    lcd.blink();
+    lcd.print("  4.CREDITOS");
 }
 
 void calibracao(){
     lcd.clear();
+    lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("~ 1 ESTEIRA");
+    lcd.print("~ 1.ESTEIRA");
     lcd.setCursor(0,1);
-    lcd.print("  2 MAGAZINE");
+    lcd.print("  2.MAGAZINE");
     lcd.setCursor(0,2);
-    lcd.print("  3 SENSOR");
-    lcd.setCursor(0,0);
-    lcd.blink();
+    lcd.print("  3.SENSOR");
 }
 
 void acionamentos(){
     lcd.clear();
+    lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("~ 1 MODO PADRAO");
+    lcd.print("~ 1.MODO PADRAO");
     lcd.setCursor(0,1);
-    lcd.print("  2 CONTROLE ESTEIRA");
+    lcd.print("  2.CONTROLE ESTEIRA");
     lcd.setCursor(0,2);
-    lcd.print("  3 CONTROLE MAG.");
+    lcd.print("  3.CONTROLE MAG.");
     lcd.setCursor(0,3);
-    lcd.print("  4 DETEDC. CORES");
-    lcd.setCursor(0,0);
-    lcd.blink();
+    lcd.print("  4.DETEC. CORES");
 }
 
 void creditos(){
@@ -188,16 +185,26 @@ void creditos(){
 
 void monitoramento(){
     lcd.clear();
-    lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("COR|QTD|PECAS/MIN: 5");
+    lcd.print("QTD|MODO OP: PROG.");
     lcd.setCursor(0,1);
-    lcd.print("~R |001|   MYT-D600");
+    lcd.print("R~3|STATUS : ERRO12");
     lcd.setCursor(0,2);
-    lcd.print(" G |015|  21:43 IFSC");
+    lcd.print("G~4|VEL(m/min):10");
     lcd.setCursor(0,3);
-    lcd.print(" B |123|  26/10/2023");
+    lcd.print("B~1|PECAS/MIN : 2");
+    // lcd.setCursor(3,0);
+    // lcd.write(255);
+    // lcd.setCursor(3,1);
+    // lcd.write(255);
+    // lcd.setCursor(3,2);
+    // lcd.write(255);
+    // lcd.setCursor(3,3);
+    // lcd.write(255);
+    lcd.setCursor(0,1);
+    lcd.blink();
 }
+
 
 /******************************************************************/
 void motorByFadeTime(){
@@ -348,6 +355,7 @@ void setup(void){
     }
     delay(1000);
 
+    monitoramento();
 
 
 
@@ -374,15 +382,15 @@ void loop(void){
     // Tela 1
 
 
-    menuPrincipal();
-    delay(5000);
-    calibracao();
-    delay(5000);
-    acionamentos();
-    delay(5000);
-    creditos();
-    delay(5000);
-    monitoramento();
-    delay(5000);
+    // menuPrincipal();
+    // delay(1000);
+    // calibracao();
+    // delay(1000);
+    // acionamentos();
+    // delay(1000);
+    // creditos();
+    // delay(1000);
+    // monitoramento();
+    // delay(1000);
 
 }

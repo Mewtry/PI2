@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#line 1 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 1 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 /**************************************************************************/
 /**
  * @file    MYT_600.ino
@@ -115,25 +115,25 @@ ledc_channel_config_t channel_0 = {             // Configuração do canal de PW
 /******************** INTERRUPTS ********************/
     // GPIO ISR HANDLER (IHM BUTTONS, SENSORS)
 
-#line 136 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 136 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void menuPrincipal();
-#line 150 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 149 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void calibracao();
-#line 162 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 160 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void acionamentos();
-#line 176 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 173 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void creditos();
-#line 189 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 186 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void monitoramento();
-#line 203 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 210 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void motorByFadeTime();
-#line 252 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 259 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void motorByFadeStep();
-#line 317 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 324 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void setup(void);
-#line 362 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 370 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void loop(void);
-#line 116 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 116 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 static void IRAM_ATTR gpio_isr_handler(void *arg){
     if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE){
 
@@ -156,42 +156,39 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
 
 void menuPrincipal(){
     lcd.clear();
+    lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("~ 1 ACIONAMENTOS");
+    lcd.print("~ 1.ACIONAMENTOS");
     lcd.setCursor(0,1);
-    lcd.print("  2 PROG ALUNO");
+    lcd.print("  2.PROG ALUNO");
     lcd.setCursor(0,2);
-    lcd.print("  3 CALIBRACAO");
+    lcd.print("  3.CALIBRACAO");
     lcd.setCursor(0,3);
-    lcd.print("  4 CREDITOS");
-    lcd.setCursor(0,0);
-    lcd.blink();
+    lcd.print("  4.CREDITOS");
 }
 
 void calibracao(){
     lcd.clear();
+    lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("~ 1 ESTEIRA");
+    lcd.print("~ 1.ESTEIRA");
     lcd.setCursor(0,1);
-    lcd.print("  2 MAGAZINE");
+    lcd.print("  2.MAGAZINE");
     lcd.setCursor(0,2);
-    lcd.print("  3 SENSOR");
-    lcd.setCursor(0,0);
-    lcd.blink();
+    lcd.print("  3.SENSOR");
 }
 
 void acionamentos(){
     lcd.clear();
+    lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("~ 1 MODO PADRAO");
+    lcd.print("~ 1.MODO PADRAO");
     lcd.setCursor(0,1);
-    lcd.print("  2 CONTROLE ESTEIRA");
+    lcd.print("  2.CONTROLE ESTEIRA");
     lcd.setCursor(0,2);
-    lcd.print("  3 CONTROLE MAG.");
+    lcd.print("  3.CONTROLE MAG.");
     lcd.setCursor(0,3);
-    lcd.print("  4 DETEDC. CORES");
-    lcd.setCursor(0,0);
-    lcd.blink();
+    lcd.print("  4.DETEC. CORES");
 }
 
 void creditos(){
@@ -209,16 +206,26 @@ void creditos(){
 
 void monitoramento(){
     lcd.clear();
-    lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("COR|QTD|PECAS/MIN: 5");
+    lcd.print("QTD|MODO OP: PROG.");
     lcd.setCursor(0,1);
-    lcd.print("~R |001|   MYT-D600");
+    lcd.print("R~3|STATUS : ERRO12");
     lcd.setCursor(0,2);
-    lcd.print(" G |015|  21:43 IFSC");
+    lcd.print("G~4|VEL(m/min):10");
     lcd.setCursor(0,3);
-    lcd.print(" B |123|  26/10/2023");
+    lcd.print("B~1|PECAS/MIN : 2");
+    // lcd.setCursor(3,0);
+    // lcd.write(255);
+    // lcd.setCursor(3,1);
+    // lcd.write(255);
+    // lcd.setCursor(3,2);
+    // lcd.write(255);
+    // lcd.setCursor(3,3);
+    // lcd.write(255);
+    lcd.setCursor(0,1);
+    lcd.blink();
 }
+
 
 /******************************************************************/
 void motorByFadeTime(){
@@ -369,6 +376,7 @@ void setup(void){
     }
     delay(1000);
 
+    monitoramento();
     
 
 
@@ -395,16 +403,16 @@ void loop(void){
     // Tela 1
     
 
-    menuPrincipal();
-    delay(5000);
-    calibracao();
-    delay(5000);
-    acionamentos();
-    delay(5000);
-    creditos();
-    delay(5000);
-    monitoramento();
-    delay(5000);
+    // menuPrincipal();
+    // delay(1000);
+    // calibracao();
+    // delay(1000);
+    // acionamentos();
+    // delay(1000);
+    // creditos();
+    // delay(1000);
+    // monitoramento();
+    // delay(1000);
 
 }
 
