@@ -96,14 +96,26 @@ static const char * versao = "1.0.0";
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = NULL;
 gpio_num_t buttonPins[] = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN};
+bool modoPadrao = true;
 
 enum telasIHM {
-    INICIALIZACAO,
-    MENU_PRINCIPAL,
-    MENU_CALIBRACAO,
-    MENU_ACIONAMENTOS,
-    MENU_CREDITOS,
-    MONITORAMENTO
+    INICIALIZACAO     = 0,
+    MENU_PRINCIPAL    = 1,
+    MONITORAMENTO     = 2,
+
+    // Menu anterior * 10 + linhaAtual
+    MENU_ACIONAMENTOS = 10, 
+    MENU_PROG_ALUNO   = 11,
+    MENU_CALIBRACAO   = 12,
+    MENU_CREDITOS     = 13,
+
+    MENU_ESTEIRA      = 100,
+    MENU_MAGAZINE     = 101,
+    MENU_SENSOR       = 102,
+
+    MENU_CAL_ESTEIRA  = 120,
+    MENU_CAL_MAGAZINE = 121,
+    MENU_CAL_SENSOR   = 122
 };
 
 enum keys {
@@ -113,6 +125,66 @@ enum keys {
     KEY_UP,
     KEY_DOWN,
     KEY_ENTER
+};
+
+enum caracters {
+    ARROW_UP,
+    ARROW_DOWN,
+    ARROW_CW,
+    ARROW_CCW,
+    ENTER
+};
+
+uint8_t arrowUp[8] = {
+    0b00000,
+    0b00100,
+    0b01110,
+    0b10101,
+    0b00100,
+    0b00100,
+    0b00000,
+    0b00000
+};
+
+uint8_t arrowDown[8] = {
+    0b00000,
+    0b00100,
+    0b00100,
+    0b10101,
+    0b01110,
+    0b00100,
+    0b00000,
+    0b00000
+};
+
+uint8_t arrowCW[8] = {
+    0b00000,
+    0b01101,
+    0b10011,
+    0b10111,
+    0b10000,
+    0b10000,
+    0b01110
+};
+
+uint8_t arrowCCW[8] = {
+    0b00000,
+    0b10110,
+    0b11001,
+    0b11101,
+    0b00001,
+    0b00001,
+    0b01110
+};
+
+uint8_t enter[8] = {
+    0b00001,
+    0b00001,
+    0b00101,
+    0b01101,
+    0b11111,
+    0b01100,
+    0b00100
 };
 
 uint32_t keyPressed = KEY_NONE;
@@ -157,7 +229,7 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
         xQueueSendFromISR(gpio_event_queue, &gpio_num, NULL);
 
     }else{
-        xQueueReset(gpio_event_queue);
+        // xQueueReset(gpio_event_queue);
     }
 }
 
@@ -172,30 +244,85 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
     // UART WRITE FUNCS
     // INIT SETUP FUNC
 
-void tela(uint8_t n){
+void keyLeft(){
+    if(subMenuAtual == 0)
+        telaAtual > 1 ? telaAtual-- : telaAtual = 2;
+    else if (telaAtual != MENU_ESTEIRA){
+        telaAtual = telaAtual / 10;
+        subMenuAtual--;
+    }
+}
+
+void keyRight(){
+    if(subMenuAtual == 0){
+        telaAtual < 2 ? telaAtual++ : telaAtual = 1;
+    }
+}
+
+void keyUp(){
+    linhaAtual > 0 ? linhaAtual-- : linhaAtual = 3;
+}
+
+void keyDown(){
+    linhaAtual < 3 ? linhaAtual++ : linhaAtual = 0;
+}
+
+void keyEnter(){
+    if(subMenuAtual == 0){
+        telaAtual = telaAtual * 10 + linhaAtual;
+        subMenuAtual++;
+    } else if (telaAtual == MENU_ACIONAMENTOS){
+        if(linhaAtual == 0)
+            modoPadrao = !modoPadrao;
+        else if(linhaAtual == 1){
+            telaAtual = MENU_ESTEIRA;
+            subMenuAtual++;
+        }
+        else if(linhaAtual == 2){
+            telaAtual = MENU_MAGAZINE;
+            subMenuAtual++;
+        }
+        else if(linhaAtual == 3){
+            telaAtual = MENU_SENSOR;
+            subMenuAtual++;
+        }
+    }
+    else if(telaAtual == MENU_ESTEIRA){
+        telaAtual = telaAtual / 10;
+        subMenuAtual--;
+    }
+}
+
+
+void atualizaTela(){
     if(telaAtual != telaAnterior){
         lcd.clear();
         telaAnterior = telaAtual;
     }
-    switch (n)
+    switch (telaAtual)
     {
-    case 0:
+    case INICIALIZACAO:
         inicializacao();
         break;
-    case 1:
+    case MENU_PRINCIPAL:
         menuPrincipal();
         break;
-    case 2:
-        menuCalibracao();
+    case MONITORAMENTO:
+        monitoramento();
         break;
-    case 3:
+    case MENU_ACIONAMENTOS:
         menuAcionamentos();
         break;
-    case 4:
+    case MENU_PROG_ALUNO:
+        break;
+    case MENU_CALIBRACAO:
+        menuCalibracao();
+        break;
+    case MENU_CREDITOS:
         menuCreditos();
         break;
-    case 5:
-        monitoramento();
+    case MENU_ESTEIRA:
+        acionamentoEsteira();
         break;
     default:
         break;
@@ -218,54 +345,22 @@ void inicializacao(){
     }
     delay(1000);
     lcd.clear();
-    telaAtual = MENU_PRINCIPAL;
-    tela(telaAtual);
+    telaAtual = MONITORAMENTO;
+    atualizaTela();
 }
 
 void menuPrincipal(){
     lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("~ 1.ACIONAMENTOS");
+    lcd.print("  1.ACIONAMENTOS");
     lcd.setCursor(0,1);
     lcd.print("  2.PROG ALUNO");
     lcd.setCursor(0,2);
     lcd.print("  3.CALIBRACAO");
     lcd.setCursor(0,3);
     lcd.print("  4.CREDITOS");
-}
-
-void menuCalibracao(){
-    lcd.noBlink();
-    lcd.setCursor(0,0);
-    lcd.print("~ 1.ESTEIRA");
-    lcd.setCursor(0,1);
-    lcd.print("  2.MAGAZINE");
-    lcd.setCursor(0,2);
-    lcd.print("  3.SENSOR");
-}
-
-void menuAcionamentos(){
-    lcd.noBlink();
-    lcd.setCursor(0,0);
-    lcd.print("~ 1.MODO PADRAO");
-    lcd.setCursor(0,1);
-    lcd.print("  2.CONTROLE ESTEIRA");
-    lcd.setCursor(0,2);
-    lcd.print("  3.CONTROLE MAG.");
-    lcd.setCursor(0,3);
-    lcd.print("  4.DETEC. CORES");
-}
-
-void menuCreditos(){
-    lcd.noBlink();
-    lcd.setCursor(0,0);
-    lcd.print("Por:Matheus Beirao");
-    lcd.setCursor(0,1);
-    lcd.print("    Yasmin Georgetti");
-    lcd.setCursor(0,2);
-    lcd.print("    Theo V. Pires");
-    lcd.setCursor(0,3);
-    lcd.print("    Denise Costa");
+    lcd.setCursor(0,linhaAtual);
+    lcd.print("~");
 }
 
 void monitoramento(){
@@ -297,6 +392,69 @@ void monitoramento(){
     }
 }
 
+void menuAcionamentos(){
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("  1.MODO: ");
+    modoPadrao ? lcd.print("PADRAO") : lcd.print("PROG.");
+    lcd.setCursor(0,1);
+    lcd.print("  2.CONTROLE ESTEIRA");
+    lcd.setCursor(0,2);
+    lcd.print("  3.CONTROLE MAG.");
+    lcd.setCursor(0,3);
+    lcd.print("  4.DETEC. CORES");
+    lcd.setCursor(0,linhaAtual);
+    lcd.print("~");
+}
+
+void menuCalibracao(){
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("  1.ESTEIRA");
+    lcd.setCursor(0,1);
+    lcd.print("  2.MAGAZINE");
+    lcd.setCursor(0,2);
+    lcd.print("  3.SENSOR");
+    if(linhaAtual > 2){
+        linhaAtual = 0;
+    }
+    lcd.setCursor(0,linhaAtual);
+    lcd.print("~");
+}
+
+void menuCreditos(){
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("Por:Matheus Beirao");
+    lcd.setCursor(0,1);
+    lcd.print("    Yasmin Georgetti");
+    lcd.setCursor(0,2);
+    lcd.print("    Theo V. Pires");
+    lcd.setCursor(0,3);
+    lcd.print("    Denise Costa");
+}
+
+void acionamentoEsteira(){
+    lcd.setCursor(0,0);
+    lcd.print("**CONTROLE ESTEIRA**");
+    lcd.setCursor(0,1);
+    lcd.print(" VOLTAR: ");
+    lcd.write(ENTER);
+    lcd.setCursor(0,2);
+    lcd.print(" MOVER ");
+    lcd.write(ARROW_CW);
+    lcd.print(": ~  VEL+: ");
+    lcd.write(ARROW_UP);
+    lcd.setCursor(0,3);
+    lcd.print(" MOVER ");
+    lcd.write(ARROW_CCW);
+    lcd.print(": ");
+    lcd.write(127);
+    lcd.print("  VEL-: ");
+    lcd.write(ARROW_DOWN);
+
+}
+
 
 void uartBegin(){
     // Cria a estrutura com dados de configuração da UART
@@ -322,7 +480,7 @@ void uartBegin(){
     uart_enable_pattern_det_baud_intr(UART_NUM_1, 0x0a, 1, 9, 0, 0); 
 
     // Cria a task no nucleo 0 com prioridade 1
-    xTaskCreate(uart_event_task, "uart_event_task", 4096, NULL, 1, NULL);
+    xTaskCreate(uart_event_task, "uart_event_task", 4096, NULL, 2, NULL);
 
 } // end uart_init
 
@@ -585,28 +743,26 @@ static void principal_task(void *pvParameters){
             switch (keyPressed)
             {
             case KEY_LEFT:
-                if(subMenuAtual == 0)
-                    telaAtual > 1 ? telaAtual-- : telaAtual = 5;
+                keyLeft();
                 break;
             case KEY_RIGHT:
-                if(subMenuAtual == 0)
-                    telaAtual < 5 ? telaAtual++ : telaAtual = 1;
+                keyRight();
                 break;
             case KEY_UP:
-                linhaAtual < 3 ? linhaAtual++ : linhaAtual = 0;
+                keyUp();
                 break;
             case KEY_DOWN:
-                linhaAtual > 0 ? linhaAtual-- : linhaAtual = 3;
+                keyDown();
                 break;
             case KEY_ENTER:
-                printf("ENTER\r\n");
+                keyEnter();
                 break;
             default:
                 break;
             }
         }
 
-        tela(telaAtual);
+        atualizaTela();
     }
 }
 
@@ -630,10 +786,15 @@ void setup(void){
     gpioBegin();
 
     lcd.init();
+    lcd.createChar(ARROW_UP,   arrowUp  );
+    lcd.createChar(ARROW_DOWN, arrowDown);
+    lcd.createChar(ARROW_CW,   arrowCW  );
+    lcd.createChar(ARROW_CCW,  arrowCCW );
+    lcd.createChar(ENTER,      enter    );
     lcd.backlight();
-    tela(INICIALIZACAO);
+    atualizaTela();
 
-    xTaskCreate(principal_task, "principal_task", 4096, NULL, 1, NULL); // Cria a task no nucleo 1 com prioridade 1
+    xTaskCreate(principal_task, "principal_task", 4096, NULL, 3, NULL); // Cria a task com prioridade 3
 
     // ledc_timer_config(&timer);
     // ledc_channel_config(&channel_0);
