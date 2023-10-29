@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#line 1 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+#line 1 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 /**************************************************************************/
 /**
  * @file    MYT_600.ino
@@ -9,7 +9,8 @@
 */
 /**************************************************************************/
 
-#include "Wire.h"
+#include <Wire.h>
+#include <ArduinoJson.h>
 #include <AccelStepper.h>
 #include "LiquidCrystal_I2C.h"
 #include "freertos/FreeRTOS.h"
@@ -57,6 +58,15 @@
 
 // COMUNICAÇÂO SERIAL UART
 #define UART_NUM UART_NUM_0
+#define BUF_SIZE (1024)
+
+// BOTÕES DA IHM
+#define KEY_LEFT_PIN  GPIO_NUM_36
+#define KEY_RIGHT_PIN GPIO_NUM_39
+#define KEY_UP_PIN    GPIO_NUM_34
+#define KEY_DOWN_PIN  GPIO_NUM_35
+#define KEY_ENTER_PIN GPIO_NUM_32
+#define PIN_MASK (1ULL << KEY_LEFT_PIN) | (1ULL << KEY_RIGHT_PIN) | (1ULL << KEY_UP_PIN) | (1ULL << KEY_DOWN_PIN) | (1ULL << KEY_ENTER_PIN)
 
 /******************** INSTANCES ********************/
 
@@ -87,6 +97,31 @@ static const char * versao = "1.0.0";
 
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = NULL;
+gpio_num_t buttonPins[] = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN};
+
+enum telasIHM {
+    INICIALIZACAO,
+    MENU_PRINCIPAL,
+    MENU_CALIBRACAO,
+    MENU_ACIONAMENTOS,
+    MENU_CREDITOS,
+    MONITORAMENTO
+};
+
+enum keys {
+    KEY_NONE,
+    KEY_LEFT,
+    KEY_RIGHT,
+    KEY_UP,
+    KEY_DOWN,
+    KEY_ENTER
+};
+
+uint32_t keyPressed = KEY_NONE;
+uint8_t  telaAtual = INICIALIZACAO;
+uint8_t  telaAnterior = INICIALIZACAO;
+uint8_t  subMenuAtual = 0;
+uint8_t  linhaAtual = 0;
 
 uint32_t ccMotorDuty = 500;
 
@@ -112,28 +147,48 @@ ledc_channel_config_t channel_0 = {             // Configuração do canal de PW
 
 };
 
+
+
 /******************** INTERRUPTS ********************/
     // GPIO ISR HANDLER (IHM BUTTONS, SENSORS)
 
-#line 136 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+#line 175 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+void tela(uint8_t n);
+#line 205 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+void inicializacao();
+#line 225 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void menuPrincipal();
-#line 149 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
-void calibracao();
-#line 160 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
-void acionamentos();
-#line 173 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
-void creditos();
-#line 186 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+#line 237 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+void menuCalibracao();
+#line 247 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+void menuAcionamentos();
+#line 259 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+void menuCreditos();
+#line 271 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void monitoramento();
-#line 210 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+#line 301 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+void uartBegin();
+#line 329 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+void responseOK();
+#line 339 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+void responseError( uint8_t code, const char * message);
+#line 352 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+void trataComandoRecebido(uint8_t * dt);
+#line 394 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+void gpioBegin();
+#line 419 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void motorByFadeTime();
-#line 259 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+#line 468 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void motorByFadeStep();
-#line 324 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+#line 533 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+static void uart_event_task(void *pvParameters);
+#line 581 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+static void principal_task(void *pvParameters);
+#line 614 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void setup(void);
-#line 370 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+#line 646 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void loop(void);
-#line 116 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+#line 153 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 static void IRAM_ATTR gpio_isr_handler(void *arg){
     if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE){
 
@@ -145,6 +200,8 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
     }
 }
 
+
+
 /******************** FUNCTIONS ********************/
     // CONVEYOR MOTOR CONTROL FUNCS
     // MAGAZINE MOTOR CONTROL FUNCS
@@ -154,8 +211,57 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
     // UART WRITE FUNCS
     // INIT SETUP FUNC
 
-void menuPrincipal(){
+void tela(uint8_t n){
+    if(telaAtual != telaAnterior){
+        lcd.clear();
+        telaAnterior = telaAtual;
+    }
+    switch (n)
+    {
+    case 0:
+        inicializacao();
+        break;
+    case 1:
+        menuPrincipal();
+        break;
+    case 2:
+        menuCalibracao();
+        break;
+    case 3:
+        menuAcionamentos();
+        break;
+    case 4:
+        menuCreditos();
+        break;
+    case 5:
+        monitoramento();
+        break;
+    default:
+        break;
+    }
+}
+
+void inicializacao(){
+    lcd.setCursor(6,0);
+    lcd.print("MYT-D600");
+    lcd.setCursor(6,1);
+    lcd.print("v: ");
+    lcd.print(versao);
+
+    lcd.setCursor(4,2);
+    lcd.print("Iniciando...");
+    for(int i = 0; i < 20; i++){
+        lcd.setCursor(i,3);
+        lcd.write(255);
+        delay(100);
+    }
+    delay(1000);
     lcd.clear();
+    telaAtual = MENU_PRINCIPAL;
+    tela(telaAtual);
+}
+
+void menuPrincipal(){
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("~ 1.ACIONAMENTOS");
@@ -167,8 +273,7 @@ void menuPrincipal(){
     lcd.print("  4.CREDITOS");
 }
 
-void calibracao(){
-    lcd.clear();
+void menuCalibracao(){
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("~ 1.ESTEIRA");
@@ -178,8 +283,7 @@ void calibracao(){
     lcd.print("  3.SENSOR");
 }
 
-void acionamentos(){
-    lcd.clear();
+void menuAcionamentos(){
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("~ 1.MODO PADRAO");
@@ -191,8 +295,7 @@ void acionamentos(){
     lcd.print("  4.DETEC. CORES");
 }
 
-void creditos(){
-    lcd.clear();
+void menuCreditos(){
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("Por:Matheus Beirao");
@@ -205,7 +308,6 @@ void creditos(){
 }
 
 void monitoramento(){
-    lcd.clear();
     lcd.setCursor(0,0);
     lcd.print("QTD|MODO OP: PROG.");
     lcd.setCursor(0,1);
@@ -214,18 +316,143 @@ void monitoramento(){
     lcd.print("G~4|VEL(m/min):10");
     lcd.setCursor(0,3);
     lcd.print("B~1|PECAS/MIN : 2");
-    // lcd.setCursor(3,0);
-    // lcd.write(255);
-    // lcd.setCursor(3,1);
-    // lcd.write(255);
-    // lcd.setCursor(3,2);
-    // lcd.write(255);
-    // lcd.setCursor(3,3);
-    // lcd.write(255);
-    lcd.setCursor(0,1);
-    lcd.blink();
+    switch (tcs.getColor())
+    {
+    case RED:
+        lcd.setCursor(0,1);
+        lcd.blink();
+        break;
+    case GREEN:
+        lcd.setCursor(0,2);
+        lcd.blink();
+        break;
+    case BLUE:
+        lcd.setCursor(0,3);
+        lcd.blink();
+        break;
+    default:
+        lcd.noBlink();
+        break;
+    }
 }
 
+
+void uartBegin(){
+    // Cria a estrutura com dados de configuração da UART
+    uart_config_t uart_config = {
+        .baud_rate = 115200,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits  = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
+    };
+
+    // Configura UART com as informações setadas acima
+    uart_param_config(UART_NUM_0, &uart_config);
+
+    // Configura os pinos como padrão para a UART0
+    uart_set_pin(UART_NUM_0, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+
+    // Configura a instalação do driver para UART0
+    uart_driver_install(UART_NUM_0, BUF_SIZE * 2, BUF_SIZE * 2, 10, &uart_queue, 0);
+
+    // Configura interrupção por padrão de caracter. Padrão '\n'(ASCII) '0x0a'(HEX) '10'(DEC)
+    //uart_enable_pattern_det_intr(EX_UART_NUM, 0x0a, 3, 10000, 10, 10); // Função desatualizada
+    uart_enable_pattern_det_baud_intr(UART_NUM_1, 0x0a, 1, 9, 0, 0); 
+
+    // Cria a task no nucleo 0 com prioridade 1
+    xTaskCreate(uart_event_task, "uart_event_task", 4096, NULL, 1, NULL);
+
+} // end uart_init
+
+void responseOK(){
+    char * output = (char *) malloc((sizeof(char) * 50));
+    StaticJsonDocument<50> json_OUT;
+    json_OUT["type"] = "response";
+    json_OUT["status"] = "ok";
+    serializeJson(json_OUT, output, 50);
+    printf("%s\r\n", output);
+    free(output);
+}
+
+void responseError( uint8_t code, const char * message){
+    char * output = (char *) malloc((sizeof(char) * 200));
+    StaticJsonDocument<200> json_OUT;
+    json_OUT["type"] = "response";
+    json_OUT["status"] = "error";
+    JsonObject error = json_OUT.createNestedObject("error");
+    error["code"] = code;
+    error["message"] = message;
+    serializeJson(json_OUT, output, 200);
+    printf("%s\r\n", output);
+    free(output);
+}
+
+void trataComandoRecebido(uint8_t * dt){
+    // printf("Dado em tratamento: %s\r\n", dt);
+    if(dt[0] == 'v'){
+        printf("Versao: %s\r\n", versao);
+        return;
+    }
+    if(dt[0] == '{'){
+        // printf("JSON: %s\r\n", dt);
+        StaticJsonDocument<200> json_IN;
+        DeserializationError err = deserializeJson(json_IN, dt);
+        if(err){
+            responseError(err.code(), err.c_str());
+            return;
+        }
+
+        const char * jsonType = json_IN["type"];
+        if(jsonType){
+            if( ! strcmp(jsonType, "teste")){
+                responseOK();
+                return;
+            }
+            if( ! strcmp(jsonType, "menu")){
+                telaAtual = json_IN["menu"];
+                subMenuAtual = json_IN["submenu"];
+                responseOK();
+                return;
+            }
+            if( ! strcmp(jsonType, "emulate")){
+                uint32_t key = json_IN["key"];
+                xQueueSend(gpio_event_queue, &key, 0);
+                responseOK();
+                return;
+            }
+        }
+        else{
+            responseError(99, "Tipo de comando não reconhecido");
+            return;
+        }
+    }
+
+}
+
+void gpioBegin(){
+    gpio_config_t io_config = {                 // Configuração do pino de interrupção
+        .pin_bit_mask = PIN_MASK,               // Máscara de seleção dos pinos
+        .mode         = GPIO_MODE_INPUT,        // Modo de operação do pino
+        .pull_up_en   = GPIO_PULLUP_ENABLE,     // Habilita resistor de pull-up
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,  // Desabilita resistor de pull-down
+        .intr_type    = GPIO_INTR_ANYEDGE       // Tipo de interrupção
+    };
+
+    gpio_config(&io_config);                    // Chama a função para configurar o GPIO
+
+    // Cria um fila de eventos para lidar com as interrupções do GPIO
+    gpio_event_queue = xQueueCreate(50, sizeof(uint32_t));
+
+    // Instala o manipulador de interrupção GPIO
+    gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
+
+    // Configura o manipulador de interrupção GPIO
+    for(int i = 0; i < 5; i++){
+        gpio_isr_handler_add(buttonPins[i], gpio_isr_handler, (void *) buttonPins[i]);
+    }
+
+} // end gpioBegin
 
 /******************************************************************/
 void motorByFadeTime(){
@@ -338,47 +565,114 @@ void motorByFadeStep(){
 }
 
 /********************** TASKS ***********************/
-    // PRINCIPAL TASK AND IHM MONITOR (VARIABLES AND DISPLAY UPDATE, MOTOR CONTROL AND READ SENSORS)
-    // SERIAL PROTOCOL CONTROL
+// PRINCIPAL TASK AND IHM MONITOR (VARIABLES AND DISPLAY UPDATE, MOTOR CONTROL AND READ SENSORS)
+// SERIAL PROTOCOL CONTROL
+
+// Task que monitora os eventos UART e trata cada um deles
+static void uart_event_task(void *pvParameters){
+    // Cria um manipulador de evento
+    uart_event_t event;
+
+    // Aloca o buffer de memória, do tamanho epecificado em BUF_SIZE
+    uint8_t *data = (uint8_t *) malloc(BUF_SIZE+1);
+    int len = 0;
+
+    while(1){
+        // Primeiro aguardamos pela ocorrência de um evento e depois analisamos seu tipo
+        if (xQueueReceive(uart_queue, (void *) &event, (portTickType) portMAX_DELAY)){
+            // Ocorreu um evento, então devemos analisar seu tipo e então finalizar o loop
+            switch (event.type)
+            {
+            case UART_DATA:
+                len = uart_read_bytes(UART_NUM_0, data, BUF_SIZE, 200 / portTICK_RATE_MS);
+                if(len > 0){
+                    data[len] = '\0';  // Trunca o buffer para trabalhar como uma string                   
+                    // printf("Dado recebido: %s\r\n", data);
+                    if(data[len-1] == '\n' || data[len-1] == '\r' || data[len-1] == ' '){
+                        data[len-1] = 0;
+                        trataComandoRecebido(data);
+                    }
+                }
+                break;
+            case UART_FIFO_OVF:
+                ESP_LOGE(UART_TAG, "Evento: hw overflow");
+                uart_flush(UART_NUM_0);
+                break;
+            case UART_BUFFER_FULL:
+                // Neste caso o dado provavelmente não estará completo, devemos tratá-lo para não perder info
+                ESP_LOGW(UART_TAG, "Evento: Dado > buffer");
+                uart_flush(UART_NUM_0);
+                break;
+            default:
+                // Evento desconhecido
+                ESP_LOGE(UART_TAG, "Evento: Erro desconhecido");
+                break;
+            }
+        }
+    }
+    // Desacola a memória dinâmica criada na task
+    free(data);
+    data = NULL;
+    // Deleta a task após a sua conclusão
+    vTaskDelete(NULL);
+} // end uart_event_task
+
+static void principal_task(void *pvParameters){
+
+    while(true){
+        if(xQueueReceive(gpio_event_queue, &keyPressed, pdMS_TO_TICKS(1000))){
+            switch (keyPressed)
+            {
+            case KEY_LEFT:
+                if(subMenuAtual == 0)
+                    telaAtual > 1 ? telaAtual-- : telaAtual = 5;
+                break;
+            case KEY_RIGHT:
+                if(subMenuAtual == 0)
+                    telaAtual < 5 ? telaAtual++ : telaAtual = 1;
+                break;
+            case KEY_UP:
+                linhaAtual < 3 ? linhaAtual++ : linhaAtual = 0;
+                break;
+            case KEY_DOWN:
+                linhaAtual > 0 ? linhaAtual-- : linhaAtual = 3;
+                break;
+            case KEY_ENTER:
+                printf("ENTER\r\n");
+                break;
+            default:
+                break;
+            }
+        }
+
+        tela(telaAtual);
+    }
+}
 
 /********************** SETUP **********************/
 void setup(void){
     // SETUP AND TASK CREATE
     // Serial.begin(115200);
-    // tcs.begin();
-    // tcs.setSampling(500);
+    uartBegin();
 
-    // sensorData darkCal = {
-    //     .value = {18091, 14092, 19023}
-    // };
-    // sensorData whiteCal = {
-    //     .value = {219059, 210688, 285216}
-    // };
+    tcs.begin();
+    tcs.setSampling(500);
+    sensorData darkCal = {
+        .value = {4162, 3764, 5166}
+    };
+    sensorData whiteCal = {
+        .value = {50551, 46568, 60065}
+    };
+    tcs.setDarkCal(&darkCal);
+    tcs.setWhiteCal(&whiteCal);
 
-    // tcs.setDarkCal(&darkCal);
-    // tcs.setWhiteCal(&whiteCal);
+    gpioBegin();
 
     lcd.init();
-
     lcd.backlight();
-    lcd.setCursor(6,0);
-    lcd.print("MYT-D600");
-    lcd.setCursor(6,1);
-    lcd.print("v: ");
-    lcd.print(versao);
+    tela(INICIALIZACAO);
 
-    lcd.setCursor(4,2);
-    lcd.print("Iniciando...");
-    for(int i = 0; i < 20; i++){
-        lcd.setCursor(i,3);
-        lcd.write(255);
-        delay(100);
-    }
-    delay(1000);
-
-    monitoramento();
-    
-
+    xTaskCreate(principal_task, "principal_task", 4096, NULL, 1, NULL); // Cria a task no nucleo 1 com prioridade 1
 
     // ledc_timer_config(&timer);
     // ledc_channel_config(&channel_0);
@@ -397,21 +691,12 @@ void loop(void){
     // printf("TCS230: RGB(%d, %d, %d)\n", rgb.value[RED], rgb.value[GREEN], rgb.value[BLUE]);
 
     // printf("TCS230: Color Read -> %s\n\n", tcs.getColorToString());
+
     // vTaskDelay(250 / portTICK_PERIOD_MS);
+
     // motorByFadeStep();
 
-    // Tela 1
-    
-
-    // menuPrincipal();
-    // delay(1000);
-    // calibracao();
-    // delay(1000);
-    // acionamentos();
-    // delay(1000);
-    // creditos();
-    // delay(1000);
-    // monitoramento();
+    // tela(telaAtual);
     // delay(1000);
 
 }

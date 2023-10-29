@@ -1,4 +1,4 @@
-#line 1 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\TCS230.cpp"
+#line 1 "D:\\workspace\\IFSC\\PI2\\MYT_600\\TCS230.cpp"
 /**************************************************************************/
 /**
  * @file    TCS230.cpp
@@ -214,6 +214,16 @@ void TCS230::getRaw(sensorData *d) {
     }
 }
 
+void TCS230::setDarkSensitive(uint8_t d) {
+    if(d > 0 && d < 255)
+        _ds = d;
+}
+
+void TCS230::setWhiteSensitive(uint16_t d) {
+    if(d > 0 && d < 765)
+        _ws = d;
+}
+
 // blocking read of a single sensor value (ie, not rgb)
 uint32_t TCS230::readSingle(void) {
     DUMPS("\nreadSingle");
@@ -234,6 +244,7 @@ void TCS230::read(void) {
     _readState = TCS230_READING;
     for(uint8_t i=0; i<RGB_SIZE; i++) {
         _pulseCounter = 0;
+        setFilter(i);
         setEnable(true);
         // attachInterrupt(_OUT, pulseCounterIntr, RISING); // Habilita interrupção por borda de subida no pino de saída do sensor de cor
         gpio_intr_enable(_OUT);
@@ -245,6 +256,7 @@ void TCS230::read(void) {
     }
     _readState = TCS230_READY;
     RGBTransformation();
+    _color = ColorID();
 }
 
 bool TCS230::available(void) {
@@ -267,18 +279,34 @@ void TCS230::RGBTransformation(void) {
 }
 
 char * TCS230::getColorToString(void) {
+    switch (_color) {
+        case BLACK: return "BLACK";
+        case WHITE: return "WHITE";
+        case RED:   return "RED";
+        case GREEN: return "GREEN";
+        case BLUE:  return "BLUE";
+        case GRAY:  return "GRAY";
+        default:    return "UNKNOWN";
+    }
+}
+
+uint8_t TCS230::ColorID(void) {
     int total = _rgb.value[RED]+_rgb.value[GREEN]+_rgb.value[BLUE];
 
-    if (total < DARK_SENSETIVE)
-        return "BLACK";
-    else if (total > WHITE_SENSETIVE)
-        return "WHITE";
+    if (total < _ds)
+        return BLACK;
+    else if (total > _ws)
+        return WHITE;
     else if (_rgb.value[RED] > _rgb.value[GREEN] && _rgb.value[RED] > _rgb.value[BLUE])
-        return "RED";
+        return RED;
     else if (_rgb.value[GREEN] > _rgb.value[RED] && _rgb.value[GREEN] > _rgb.value[BLUE])
-        return "GREEN";
+        return GREEN;
     else if (_rgb.value[BLUE] > _rgb.value[RED] && _rgb.value[BLUE] > _rgb.value[GREEN])
-        return "BLUE";
+        return BLUE;
     else
-        return "GRAY";
+        return GRAY;
+}
+
+uint8_t TCS230::getColor(void) {
+    return _color;
 }

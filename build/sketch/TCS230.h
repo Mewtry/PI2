@@ -1,4 +1,4 @@
-#line 1 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\TCS230.h"
+#line 1 "D:\\workspace\\IFSC\\PI2\\MYT_600\\TCS230.h"
 /**************************************************************************/
 /**
  * @file    TCS230.h
@@ -33,8 +33,6 @@ enum id_states {TCS230_READY, TCS230_READING};
 
 const uint8_t RGB_SIZE = 3;  // Limit index of RGB components
 const uint8_t NO_PIN = 0xff; // Default value for pins that not defined
-const uint8_t DARK_SENSETIVE = 120; // Limite para entender como preto em comparação ao total entre os valores RGB
-const uint16_t WHITE_SENSETIVE = 650; // Limite para entender como branco em comparação ao total entre os valores RGB
 
 // Sensor data structure type. Contains the RGB raw data from sensor.
 typedef struct {
@@ -57,43 +55,53 @@ class TCS230 {
     uint8_t _readTime;      // time of sampling in ms
     uint8_t _freqSet;       // current frequency setting
     uint8_t _readState;     // state of class reader
+    
     volatile uint32_t _pulseCounter; // pulse counter of frequency output from sensor
+    
+    uint8_t _ds = 120;   // Limite para entender como preto em comparação ao total entre os valores RGB
+    uint16_t _ws = 650; // Limite para entender como branco em comparação ao total entre os valores RGB
 
     sensorData _fd;         // dark calibration parameters raw data
     sensorData _fw;         // white calibration parameters raw data
 
     sensorData _fo;         // current raw data from sensor reading
     colorData _rgb;         // current rgb data from sensor reading
+    uint8_t _color;         // current color ID from sensor reading
 
-    void initialize(void);                  // initialize variables 
-    void RGBTransformation(void);           // convert the raw data structure to rgb data structure
-    void setFrequencyInternal(uint8_t f);   // internal function for frequency prescaler
-    static void pulseCounterIntr(void * data);
+    void initialize(void);                     // initialize variables 
+    void RGBTransformation(void);              // convert the raw data structure to rgb data structure
+    void setFrequencyInternal(uint8_t f);      // internal function for frequency prescaler
+    static void pulseCounterIntr(void * data); // interrupt handler for pulse counter
+    uint8_t ColorID(void);                     // get the color ID from rgb data structure
 
     public:
+    // Constructors
     TCS230(gpio_num_t out, uint8_t s2, uint8_t s3);
     TCS230(gpio_num_t out, uint8_t s2, uint8_t s3, uint8_t oe);
     TCS230(gpio_num_t out, uint8_t s2, uint8_t s3, uint8_t s0, uint8_t s1);
     TCS230(gpio_num_t out, uint8_t s2, uint8_t s3, uint8_t s0, uint8_t s1, uint8_t oe);
 
-    void begin(void);
-    ~TCS230(void);
+    void begin(void);                   // initialize the sensor    
+    ~TCS230(void);                      // destructor
 
     // Methods for hardware and object control
-    void setFilter(uint8_t f);
-    void setFrequency(uint8_t f);
-    void setEnable(bool b);
-    void setSampling(uint8_t t);
-    void setDarkCal(sensorData *d);
-    void setWhiteCal(sensorData *d);
+    void setFilter(uint8_t f);          // set the photodiode filter
+    void setFrequency(uint8_t f);       // set the frequency prescaler
+    void setEnable(bool b);             // set the output enable
+    void setSampling(uint8_t t);        // set the sampling time
+    void setDarkCal(sensorData *d);     // set the dark calibration data
+    void setWhiteCal(sensorData *d);    // set the white calibration data
+    void setDarkSensitive(uint8_t d);   // set the dark sensitive value
+    void setWhiteSensitive(uint16_t d); // set the white sensitive value
 
     // Methods for reading sensor data
-    void getRGB(colorData *rgb);
-    void getRaw(sensorData *d);
-    uint32_t readSingle(void);
-    void read(void);
-    bool available(void);
-    char * getColorToString(void);
+    void getRGB(colorData *rgb);        // get the rgb value of the current reading
+    void getRaw(sensorData *d);         // get the raw data of the current reading
+    uint8_t getColor(void);             // get the color ID of the current reading
+    uint32_t readSingle(void);          // read of a single sensor value (ie, not rgb)
+    void read(void);                    // read of sensor data
+    bool available(void);               // check if the sensor data is available
+    char * getColorToString(void);      // get the color name of the current reading
 };
 
 #endif
