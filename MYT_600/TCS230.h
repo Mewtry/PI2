@@ -96,11 +96,17 @@ class TCS230 {
     // Methods for reading sensor data
     void getRGB(colorData *rgb);        // get the rgb value of the current reading
     void getRaw(sensorData *d);         // get the raw data of the current reading
+    uint8_t getRed(void);               // get the red value of the current reading
+    uint8_t getGreen(void);             // get the green value of the current reading
+    uint8_t getBlue(void);              // get the blue value of the current reading
+    uint32_t getRawRed(void);           // get the raw red value of the current reading
+    uint32_t getRawGreen(void);         // get the raw green value of the current reading
+    uint32_t getRawBlue(void);          // get the raw blue value of the current reading
     uint8_t getColor(void);             // get the color ID of the current reading
+    char *  getColorToString(void);     // get the color name of the current reading
     uint32_t readSingle(void);          // read of a single sensor value (ie, not rgb)
     void read(void);                    // read of sensor data
     bool available(void);               // check if the sensor data is available
-    char * getColorToString(void);      // get the color name of the current reading
 };
 
 #endif

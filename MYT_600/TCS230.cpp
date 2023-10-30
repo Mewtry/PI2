@@ -213,6 +213,46 @@ void TCS230::getRaw(sensorData *d) {
     }
 }
 
+uint8_t TCS230::getRed(void) {
+    return _rgb.value[RED];
+}
+
+uint8_t TCS230::getGreen(void) {
+    return _rgb.value[GREEN];
+}
+
+uint8_t TCS230::getBlue(void) {
+    return _rgb.value[BLUE];
+}
+
+uint32_t TCS230::getRawRed(void) {
+    return _fo.value[RED];
+}
+
+uint32_t TCS230::getRawGreen(void) {
+    return _fo.value[GREEN];
+}
+
+uint32_t TCS230::getRawBlue(void) {
+    return _fo.value[BLUE];
+}
+
+uint8_t TCS230::getColor(void) {
+    return _color;
+}
+
+char * TCS230::getColorToString(void) {
+    switch (_color) {
+        case BLACK: return "BLACK";
+        case WHITE: return "WHITE";
+        case RED:   return "RED";
+        case GREEN: return "GREEN";
+        case BLUE:  return "BLUE";
+        case GRAY:  return "GRAY";
+        default:    return "UNKNOWN";
+    }
+}
+
 void TCS230::setDarkSensitive(uint8_t d) {
     if(d > 0 && d < 255)
         _ds = d;
@@ -277,18 +317,6 @@ void TCS230::RGBTransformation(void) {
     }
 }
 
-char * TCS230::getColorToString(void) {
-    switch (_color) {
-        case BLACK: return "BLACK";
-        case WHITE: return "WHITE";
-        case RED:   return "RED";
-        case GREEN: return "GREEN";
-        case BLUE:  return "BLUE";
-        case GRAY:  return "GRAY";
-        default:    return "UNKNOWN";
-    }
-}
-
 uint8_t TCS230::ColorID(void) {
     int total = _rgb.value[RED]+_rgb.value[GREEN]+_rgb.value[BLUE];
 
@@ -306,6 +334,5 @@ uint8_t TCS230::ColorID(void) {
         return GRAY;
 }
 
-uint8_t TCS230::getColor(void) {
-    return _color;
-}
+
+

@@ -106,7 +106,7 @@ enum telasIHM {
     // Menu anterior * 10 + linhaAtual
     MENU_ACIONAMENTOS = 10, 
     MENU_PROG_ALUNO   = 11,
-    MENU_CALIBRACAO   = 12,
+    MENU_CONFIGURACAO   = 12,
     MENU_CREDITOS     = 13,
 
     MENU_ESTEIRA      = 100,
@@ -227,9 +227,6 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueSendFromISR(gpio_event_queue, &gpio_num, NULL);
-
-    }else{
-        // xQueueReset(gpio_event_queue);
     }
 }
 
@@ -247,7 +244,7 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
 void keyLeft(){
     if(subMenuAtual == 0)
         telaAtual > 1 ? telaAtual-- : telaAtual = 2;
-    else if (telaAtual != MENU_ESTEIRA){
+    else if (telaAtual != MENU_ESTEIRA || telaAtual != MENU_MAGAZINE || telaAtual != MENU_SENSOR){
         telaAtual = telaAtual / 10;
         subMenuAtual--;
     }
@@ -294,7 +291,7 @@ void keyEnter(){
 }
 
 
-void atualizaTela(){
+void atualizaTela() {
     if(telaAtual != telaAnterior){
         lcd.clear();
         telaAnterior = telaAtual;
@@ -315,8 +312,8 @@ void atualizaTela(){
         break;
     case MENU_PROG_ALUNO:
         break;
-    case MENU_CALIBRACAO:
-        menuCalibracao();
+    case MENU_CONFIGURACAO:
+        menuConfiguracao();
         break;
     case MENU_CREDITOS:
         menuCreditos();
@@ -332,7 +329,7 @@ void atualizaTela(){
     }
 }
 
-void inicializacao(){
+void inicializacao() {
     lcd.setCursor(6,0);
     lcd.print("MYT-D600");
     lcd.setCursor(6,1);
@@ -352,21 +349,21 @@ void inicializacao(){
     atualizaTela();
 }
 
-void menuPrincipal(){
+void menuPrincipal() {
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("  1.ACIONAMENTOS");
     lcd.setCursor(0,1);
     lcd.print("  2.PROG ALUNO");
     lcd.setCursor(0,2);
-    lcd.print("  3.CALIBRACAO");
+    lcd.print("  3.CONFIGURACAO");
     lcd.setCursor(0,3);
     lcd.print("  4.CREDITOS");
     lcd.setCursor(0,linhaAtual);
     lcd.print("~");
 }
 
-void monitoramento(){
+void monitoramento() {
     lcd.setCursor(0,0);
     lcd.print("QTD|MODO OP: PROG.");
     lcd.setCursor(0,1);
@@ -395,10 +392,11 @@ void monitoramento(){
     }
 }
 
-void menuAcionamentos(){
+void menuAcionamentos() {
     lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("  1.MODO: ");
+    lcd.print("  1.MODO:       ");
+    lcd.setCursor(10,0);
     modoPadrao ? lcd.print("PADRAO") : lcd.print("PROG.");
     lcd.setCursor(0,1);
     lcd.print("  2.CONTROLE ESTEIRA");
@@ -410,7 +408,19 @@ void menuAcionamentos(){
     lcd.print("~");
 }
 
-void menuCalibracao(){
+void menuProgAluno() {
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("  Utilizar a porta  ");
+    lcd.setCursor(0,1);
+    lcd.print("serial p/ o controle");
+    lcd.setCursor(0,2);
+    lcd.print("Projeto: https://git");
+    lcd.setCursor(0,3);
+    lcd.print("hub.com/Mewtry/PI2  ");
+}
+
+void menuConfiguracao() {
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("  1.ESTEIRA");
@@ -425,7 +435,7 @@ void menuCalibracao(){
     lcd.print("~");
 }
 
-void menuCreditos(){
+void menuCreditos() {
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("Por:Matheus Beirao");
@@ -437,7 +447,8 @@ void menuCreditos(){
     lcd.print("    Denise Costa");
 }
 
-void acionamentoEsteira(){
+void acionamentoEsteira() {
+    lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("**CONTROLE ESTEIRA**");
     lcd.setCursor(0,1);
@@ -458,6 +469,7 @@ void acionamentoEsteira(){
 }
 
 void acionamentoMagazine() {
+    lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("*CONTROLE  MAGAZINE*");
     lcd.setCursor(0,1);
@@ -475,6 +487,48 @@ void acionamentoMagazine() {
     lcd.write(127);
     lcd.print("  VEL-: ");
     lcd.write(ARROW_DOWN);
+}
+
+void detecSensor() {
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("   LEITURA TCS230   ");
+    lcd.setCursor(0,1);
+    lcd.print("Raw:R");
+    lcd.print("     ");
+    lcd.setCursor(5,1);
+    lcd.print(tcs.getRawRed());
+    lcd.print(" RGB={");
+    lcd.print(tcs.getRed());
+    lcd.print(",");
+    lcd.setCursor(0,2);
+    lcd.print("    G");
+    lcd.print("     ");
+    lcd.setCursor(5,2);
+    lcd.print(tcs.getRawGreen());
+    lcd.setCursor(16,2);
+    lcd.print(tcs.getGreen());
+    lcd.print(",");
+    lcd.setCursor(0,3);
+    lcd.print("    B");
+    lcd.print("     ");
+    lcd.setCursor(5,3);
+    lcd.print(tcs.getRawBlue());
+    lcd.setCursor(16,3);
+    lcd.print(tcs.getBlue());
+    lcd.print("}");
+}
+
+void configEsteira() {
+    
+}
+
+void configMagazine() {
+
+}
+
+void configSensor() {
+
 }
 
 
