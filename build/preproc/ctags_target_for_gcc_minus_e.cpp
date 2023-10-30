@@ -324,6 +324,9 @@ void atualizaTela(){
     case MENU_ESTEIRA:
         acionamentoEsteira();
         break;
+    case MENU_MAGAZINE:
+        acionamentoMagazine();
+        break;
     default:
         break;
     }
@@ -452,7 +455,26 @@ void acionamentoEsteira(){
     lcd.write(127);
     lcd.print("  VEL-: ");
     lcd.write(ARROW_DOWN);
+}
 
+void acionamentoMagazine() {
+    lcd.setCursor(0,0);
+    lcd.print("*CONTROLE  MAGAZINE*");
+    lcd.setCursor(0,1);
+    lcd.print(" VOLTAR: ");
+    lcd.write(ENTER);
+    lcd.setCursor(0,2);
+    lcd.print(" MOVER ");
+    lcd.write(ARROW_CW);
+    lcd.print(": ~  VEL+: ");
+    lcd.write(ARROW_UP);
+    lcd.setCursor(0,3);
+    lcd.print(" MOVER ");
+    lcd.write(ARROW_CCW);
+    lcd.print(": ");
+    lcd.write(127);
+    lcd.print("  VEL-: ");
+    lcd.write(ARROW_DOWN);
 }
 
 
@@ -481,13 +503,13 @@ void uartBegin(){
 
     // Cria a task no nucleo 0 com prioridade 1
     xTaskCreate(uart_event_task, "uart_event_task", 4096, 
-# 483 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 505 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                          __null
-# 483 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 505 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                              , 2, 
-# 483 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 505 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                   __null
-# 483 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 505 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                       );
 
 } // end uart_init
@@ -712,9 +734,9 @@ static void uart_event_task(void *pvParameters){
             {
             case UART_DATA:
                 len = uart_read_bytes((0) /*!< UART port 0 */, data, (1024), 200 / ( ( TickType_t ) 1000 / ( 
-# 706 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 728 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                        1000 
-# 706 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 728 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                        ) ));
                 if(len > 0){
                     data[len] = '\0'; // Trunca o buffer para trabalhar como uma string                   
@@ -744,15 +766,15 @@ static void uart_event_task(void *pvParameters){
     // Desacola a memória dinâmica criada na task
     free(data);
     data = 
-# 734 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 756 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
           __null
-# 734 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 756 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
               ;
     // Deleta a task após a sua conclusão
     vTaskDelete(
-# 736 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 758 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 736 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 758 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                    );
 } // end uart_event_task
 
@@ -760,9 +782,9 @@ static void principal_task(void *pvParameters){
 
     while(true){
         if(xQueueReceive(gpio_event_queue, &keyPressed, ( ( TickType_t ) ( ( ( TickType_t ) ( 1000 ) * ( TickType_t ) ( 
-# 742 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 764 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                        1000 
-# 742 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 764 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                        ) ) / ( TickType_t ) 1000U ) ))){
             switch (keyPressed)
             {
@@ -819,13 +841,13 @@ void setup(void){
     atualizaTela();
 
     xTaskCreate(principal_task, "principal_task", 4096, 
-# 797 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 819 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                        __null
-# 797 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 819 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                            , 3, 
-# 797 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 819 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                 __null
-# 797 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 819 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                     ); // Cria a task com prioridade 3
 
     // ledc_timer_config(&timer);

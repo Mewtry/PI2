@@ -324,6 +324,9 @@ void atualizaTela(){
     case MENU_ESTEIRA:
         acionamentoEsteira();
         break;
+    case MENU_MAGAZINE:
+        acionamentoMagazine();
+        break;
     default:
         break;
     }
@@ -452,7 +455,26 @@ void acionamentoEsteira(){
     lcd.write(127);
     lcd.print("  VEL-: ");
     lcd.write(ARROW_DOWN);
+}
 
+void acionamentoMagazine() {
+    lcd.setCursor(0,0);
+    lcd.print("*CONTROLE  MAGAZINE*");
+    lcd.setCursor(0,1);
+    lcd.print(" VOLTAR: ");
+    lcd.write(ENTER);
+    lcd.setCursor(0,2);
+    lcd.print(" MOVER ");
+    lcd.write(ARROW_CW);
+    lcd.print(": ~  VEL+: ");
+    lcd.write(ARROW_UP);
+    lcd.setCursor(0,3);
+    lcd.print(" MOVER ");
+    lcd.write(ARROW_CCW);
+    lcd.print(": ");
+    lcd.write(127);
+    lcd.print("  VEL-: ");
+    lcd.write(ARROW_DOWN);
 }
 
 

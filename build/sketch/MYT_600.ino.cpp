@@ -236,41 +236,43 @@ void keyDown();
 void keyEnter();
 #line 297 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void atualizaTela();
-#line 332 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 335 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void inicializacao();
-#line 352 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 355 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void menuPrincipal();
-#line 366 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 369 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void monitoramento();
-#line 395 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 398 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void menuAcionamentos();
-#line 410 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 413 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void menuCalibracao();
-#line 425 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 428 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void menuCreditos();
-#line 437 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 440 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void acionamentoEsteira();
-#line 459 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 460 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+void acionamentoMagazine();
+#line 481 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void uartBegin();
-#line 487 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 509 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void responseOK();
-#line 497 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 519 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void responseError( uint8_t code, const char * message);
-#line 510 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 532 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void trataComandoRecebido(uint8_t * dt);
-#line 552 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 574 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void gpioBegin();
-#line 577 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 599 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void motorByFadeTime();
-#line 626 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 648 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void motorByFadeStep();
-#line 691 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 713 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 static void uart_event_task(void *pvParameters);
-#line 739 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 761 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 static void principal_task(void *pvParameters);
-#line 770 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 792 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void setup(void);
-#line 807 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 829 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void loop(void);
 #line 225 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 static void IRAM_ATTR gpio_isr_handler(void *arg){
@@ -374,6 +376,9 @@ void atualizaTela(){
         break;
     case MENU_ESTEIRA:
         acionamentoEsteira();
+        break;
+    case MENU_MAGAZINE:
+        acionamentoMagazine();
         break;
     default:
         break;
@@ -503,7 +508,26 @@ void acionamentoEsteira(){
     lcd.write(127);
     lcd.print("  VEL-: ");
     lcd.write(ARROW_DOWN);
+}
 
+void acionamentoMagazine() {
+    lcd.setCursor(0,0);
+    lcd.print("*CONTROLE  MAGAZINE*");
+    lcd.setCursor(0,1);
+    lcd.print(" VOLTAR: ");
+    lcd.write(ENTER);
+    lcd.setCursor(0,2);
+    lcd.print(" MOVER ");
+    lcd.write(ARROW_CW);
+    lcd.print(": ~  VEL+: ");
+    lcd.write(ARROW_UP);
+    lcd.setCursor(0,3);
+    lcd.print(" MOVER ");
+    lcd.write(ARROW_CCW);
+    lcd.print(": ");
+    lcd.write(127);
+    lcd.print("  VEL-: ");
+    lcd.write(ARROW_DOWN);
 }
 
 
