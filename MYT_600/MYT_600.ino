@@ -132,7 +132,8 @@ enum caracters {
     ARROW_DOWN,
     ARROW_CW,
     ARROW_CCW,
-    ENTER
+    ENTER,
+    POW_2
 };
 
 uint8_t arrowUp[8] = {
@@ -185,6 +186,16 @@ uint8_t enter[8] = {
     0b11111,
     0b01100,
     0b00100
+};
+
+uint8_t pow_2[8] = {
+    0b01110,
+    0b00001,
+    0b00110,
+    0b01000,
+    0b01111,
+    0b00000,
+    0b00000
 };
 
 uint32_t keyPressed = KEY_NONE;
@@ -428,9 +439,8 @@ void menuConfiguracao() {
     lcd.print("  2.MAGAZINE");
     lcd.setCursor(0,2);
     lcd.print("  3.SENSOR");
-    if(linhaAtual > 2){
+    if(linhaAtual > 2)
         linhaAtual = 0;
-    }
     lcd.setCursor(0,linhaAtual);
     lcd.print("~");
 }
@@ -520,15 +530,53 @@ void detecSensor() {
 }
 
 void configEsteira() {
-    
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("   CONFIG ESTEIRA   ");
+    lcd.setCursor(0,1);
+    lcd.print("  Vel (m/min): 10   ");
+    lcd.setCursor(0,2);
+    lcd.print("  Rampa (ms) : 5000 ");
+    lcd.setCursor(0,3);
+    lcd.print("  Sentido    : CCW  ");
+    if(linhaAtual = 0)
+        linhaAtual = 3;
+    lcd.setCursor(0,linhaAtual);
+    lcd.print("~");
 }
 
 void configMagazine() {
-
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("  CONFIG  MAGAZINE  ");
+    lcd.setCursor(0,1);
+    lcd.print("  Vel (step/s) :  96");
+    lcd.setCursor(0,2);
+    lcd.print("  Acc (step/s");
+    lcd.write(POW_2);
+    lcd.print("): 240");
+    lcd.setCursor(0,3);
+    lcd.print("  Steps/rev     :  48");
+    if(linhaAtual = 0)
+        linhaAtual = 3;
+    lcd.setCursor(0,linhaAtual);
+    lcd.print("~");
 }
 
 void configSensor() {
-
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("   CONFIG  TCS230   ");
+    lcd.setCursor(0,1);
+    lcd.print("  Calibrar branco   ");
+    lcd.setCursor(0,2);
+    lcd.print("  Calibrar preto    ");
+    lcd.setCursor(0,3);
+    lcd.print("  Amostragem: 100 ms");
+    if(linhaAtual = 0)
+        linhaAtual = 3;
+    lcd.setCursor(0,linhaAtual);
+    lcd.print("~");
 }
 
 
@@ -867,6 +915,7 @@ void setup(void){
     lcd.createChar(ARROW_CW,   arrowCW  );
     lcd.createChar(ARROW_CCW,  arrowCCW );
     lcd.createChar(ENTER,      enter    );
+    lcd.createChar(POW_2,      pow_2    );
     lcd.backlight();
     atualizaTela();
 
