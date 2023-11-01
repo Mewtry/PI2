@@ -24,13 +24,12 @@
 /********************* DEFINES *********************/
 
 // MOTOR CC DA ESTEIRA
-#define CC_MOTOR_IN1  GPIO_NUM_18
-#define CC_MOTOR_IN2  GPIO_NUM_19
-#define CC_MOTOR_ENA  GPIO_NUM_5
-#define CC_MOTOR_FADE_TIME 5000
-#define CC_MOTOR_FADE_STEP 2
-#define CC_MOTOR_FREQ 1000
-#define CC_MOTOR_RESOLUTION LEDC_TIMER_12_BIT
+#define ESTEIRA_IN1  GPIO_NUM_18
+#define ESTEIRA_IN2  GPIO_NUM_19
+#define ESTEIRA_ENA  GPIO_NUM_5
+#define ESTEIRA_FADE_TIME 5000
+#define ESTEIRA_FREQ 1000
+#define ESTEIRA_RESOLUTION LEDC_TIMER_12_BIT
 #define TOP 4095
 
 // MOTOR DE PASSO DO MAGAZINE
@@ -66,9 +65,119 @@
 #define KEY_ENTER_PIN GPIO_NUM_32
 #define PIN_MASK (1ULL << KEY_LEFT_PIN) | (1ULL << KEY_RIGHT_PIN) | (1ULL << KEY_UP_PIN) | (1ULL << KEY_DOWN_PIN) | (1ULL << KEY_ENTER_PIN)
 
-/******************** INSTANCES ********************/
+/******************** ESTRUTURAS *******************/
 
-// volatile uint32_t TCS230::_pulseCounter;
+enum telas_ihm {
+    INICIALIZACAO  = 0,
+    MENU_PRINCIPAL = 1,
+        MENU_ACIONAMENTOS = 10,
+         // MODO OP   
+            MENU_ESTEIRA      = 101,
+            MENU_MAGAZINE     = 102,
+            MENU_SENSOR       = 103,
+        MENU_PROG_ALUNO   = 11,
+        MENU_CONFIGURACAO = 12,
+            MENU_CAL_ESTEIRA  = 120,
+            MENU_CAL_MAGAZINE = 121,
+            MENU_CAL_SENSOR   = 122,
+         // RESTAURAR CONFIG
+        MENU_CREDITOS     = 13,
+    MONITORAMENTO  = 2
+};
+enum keys {
+    KEY_NONE,
+    KEY_LEFT,
+    KEY_RIGHT,
+    KEY_UP,
+    KEY_DOWN,
+    KEY_ENTER
+};
+enum caracters {
+    ARROW_UP,
+    ARROW_DOWN,
+    ARROW_CW,
+    ARROW_CCW,
+    ENTER,
+    POW_2
+};
+enum sentido_rotacao {
+    CW,
+    CCW
+};
+enum status {
+    OK,
+    RUNNING,
+    ERROR_1,
+    ERROR_2,
+    ERROR_3,
+    ERROR_4,
+    ERROR_5,
+    ERROR_6,
+    ERROR_7,
+    ERROR_8,
+    ERROR_9,
+    ERROR_10,
+};
+
+typedef struct {
+    ledc_timer_config_t   timer;
+    ledc_channel_config_t channel;
+    uint32_t              duty;
+    uint32_t              duty_max;
+    uint32_t              velocidade;
+    uint32_t              rampa_acel;
+    uint32_t              rampa_acel_max;
+    uint32_t              rampa_acel_min;
+    uint8_t               pecas_per_min;
+    bool                  sentido;
+    bool                  is_running;
+} esteira_config_t;
+
+typedef struct {
+    uint32_t magazine_vel;
+    uint32_t magazine_acel;
+    uint32_t magazine_steps_per_rev;
+    uint8_t  position;
+} magazine_config_t;
+
+typedef struct {
+    sensorData fd;
+    sensorData fw;
+    sensorData raw;
+    colorData  rgb;
+    uint16_t   read_time;
+} tcs_config_t;
+
+typedef struct {
+    uint8_t    tela_atual;
+    uint8_t    tela_anterior;
+    uint8_t    linha_atual;
+    uint8_t    linha_min;
+    uint8_t    linha_max;
+    bool       linha_selecionada;
+    uint32_t   key_pressed; // mudar para uint8_t ?
+    gpio_num_t button_pins[8];
+} ihm_config_t;
+
+typedef struct {
+    esteira_config_t  esteira;
+    magazine_config_t magazine;
+    tcs_config_t      tcs;
+    ihm_config_t      ihm;  
+    bool              operation_mode;
+    uint8_t           status;
+    char              status_printable[12][8];
+    uint8_t           qtd_pecas[TCS230_RGB_SIZE];
+} app_config_t;
+
+typedef struct {
+    esteira_config_t  esteira;
+    magazine_config_t magazine;
+    tcs_config_t      tcs;
+} aluno_config_t;
+
+
+/******************** INSTANCES ********************/
 
 TCS230 tcs(
     TCS230_OUT_PIN, 
@@ -88,52 +197,120 @@ AccelStepper magazine(AccelStepper::DRIVER, MAGAZINE_PUL_PIN, MAGAZINE_DIR_PIN);
 static const char * LCD_TAG = "LCD";
 static const char * UART_TAG = "UART";
 static const char * TCS230_TAG = "TCS230";
-static const char * CC_MOTOR_TAG = "CC_MOTOR";
+static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
 static const char * versao = "1.0.0";
 
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = NULL;
-gpio_num_t buttonPins[] = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN};
-bool modoPadrao = true;
+// gpio_num_t buttonPins[] = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN};
+// bool app.operation_mode = true;
 
-enum telasIHM {
-    INICIALIZACAO     = 0,
-    MENU_PRINCIPAL    = 1,
-    MONITORAMENTO     = 2,
-
-    // Menu anterior * 10 + linhaAtual
-    MENU_ACIONAMENTOS = 10, 
-    MENU_PROG_ALUNO   = 11,
-    MENU_CONFIGURACAO   = 12,
-    MENU_CREDITOS     = 13,
-
-    MENU_ESTEIRA      = 100,
-    MENU_MAGAZINE     = 101,
-    MENU_SENSOR       = 102,
-
-    MENU_CAL_ESTEIRA  = 120,
-    MENU_CAL_MAGAZINE = 121,
-    MENU_CAL_SENSOR   = 122
+// declaração das estruturas de app e aluno
+app_config_t app = {
+    .esteira = {
+        .timer = {
+            .speed_mode      = LEDC_LOW_SPEED_MODE,
+            .duty_resolution = ESTEIRA_RESOLUTION,
+            .timer_num       = LEDC_TIMER_0,
+            .freq_hz         = ESTEIRA_FREQ,
+            .clk_cfg         = LEDC_AUTO_CLK
+        },
+        .channel = {
+            .gpio_num   = ESTEIRA_ENA,
+            .speed_mode = LEDC_LOW_SPEED_MODE,
+            .channel    = LEDC_CHANNEL_0,
+            .duty       = 0,
+            .hpoint     = 0
+        },
+        .duty           = 0,
+        .duty_max       = TOP,
+        .velocidade     = 0,
+        .rampa_acel     = 5000,
+        .rampa_acel_max = 9999,
+        .rampa_acel_min = 1000,
+        .pecas_per_min  = 0,
+        .sentido        = CW,
+        .is_running     = false
+    },
+    .magazine = {
+        .magazine_vel           = MAGAZINE_SPEED,
+        .magazine_acel          = MAGAZINE_ACCEL,
+        .magazine_steps_per_rev = MAGAZINE_STEPS_PER_REV,
+        .position               = 0
+    },
+    .tcs = {
+        .fd        = {4162, 3764, 5166},
+        .fw        = {50551, 46568, 60065},
+        .read_time = 100
+    },
+    .ihm = {
+        .tela_atual        = INICIALIZACAO,
+        .tela_anterior     = INICIALIZACAO,
+        .linha_atual       = 0,
+        .linha_min         = 0,
+        .linha_max         = 3,
+        .linha_selecionada = false,
+        .key_pressed       = KEY_NONE,
+        .button_pins       = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN}
+    },
+    .operation_mode   = true,
+    .status           = OK,
+    .status_printable = {
+        "OK     ",
+        "RUNNING",
+        "ERROR 1",
+        "ERROR 2",
+        "ERROR 3",
+        "ERROR 4",
+        "ERROR 5",
+        "ERROR 6",
+        "ERROR 7",
+        "ERROR 8",
+        "ERROR 9",
+        "ERROR10"
+    },
+    .qtd_pecas        = {0, 0, 0}
 };
 
-enum keys {
-    KEY_NONE,
-    KEY_LEFT,
-    KEY_RIGHT,
-    KEY_UP,
-    KEY_DOWN,
-    KEY_ENTER
-};
-
-enum caracters {
-    ARROW_UP,
-    ARROW_DOWN,
-    ARROW_CW,
-    ARROW_CCW,
-    ENTER,
-    POW_2
+aluno_config_t aluno = {
+    .esteira = {
+        .timer = {
+            .speed_mode      = LEDC_LOW_SPEED_MODE,
+            .duty_resolution = ESTEIRA_RESOLUTION,
+            .timer_num       = LEDC_TIMER_0,
+            .freq_hz         = ESTEIRA_FREQ,
+            .clk_cfg         = LEDC_AUTO_CLK
+        },
+        .channel = {
+            .gpio_num   = ESTEIRA_ENA,
+            .speed_mode = LEDC_LOW_SPEED_MODE,
+            .channel    = LEDC_CHANNEL_0,
+            .duty       = 0,
+            .hpoint     = 0
+        },
+        .duty           = 0,
+        .duty_max       = TOP,
+        .velocidade     = 0,
+        .rampa_acel     = 5000,
+        .rampa_acel_max = 9999,
+        .rampa_acel_min = 1000,
+        .pecas_per_min  = 0,
+        .sentido        = CW,
+        .is_running     = false
+    },
+    .magazine = {
+        .magazine_vel           = MAGAZINE_SPEED,
+        .magazine_acel          = MAGAZINE_ACCEL,
+        .magazine_steps_per_rev = MAGAZINE_STEPS_PER_REV,
+        .position               = 0
+    },
+    .tcs = {
+        .fd        = {4162, 3764, 5166},
+        .fw        = {50551, 46568, 60065},
+        .read_time = 100
+    }
 };
 
 uint8_t arrowUp[8] = {
@@ -146,7 +323,6 @@ uint8_t arrowUp[8] = {
     0b00000,
     0b00000
 };
-
 uint8_t arrowDown[8] = {
     0b00000,
     0b00100,
@@ -157,7 +333,6 @@ uint8_t arrowDown[8] = {
     0b00000,
     0b00000
 };
-
 uint8_t arrowCW[8] = {
     0b00000,
     0b01101,
@@ -167,7 +342,6 @@ uint8_t arrowCW[8] = {
     0b10000,
     0b01110
 };
-
 uint8_t arrowCCW[8] = {
     0b00000,
     0b10110,
@@ -177,7 +351,6 @@ uint8_t arrowCCW[8] = {
     0b00001,
     0b01110
 };
-
 uint8_t enter[8] = {
     0b00001,
     0b00001,
@@ -187,7 +360,6 @@ uint8_t enter[8] = {
     0b01100,
     0b00100
 };
-
 uint8_t pow_2[8] = {
     0b01110,
     0b00001,
@@ -198,49 +370,17 @@ uint8_t pow_2[8] = {
     0b00000
 };
 
-uint32_t keyPressed = KEY_NONE;
-uint8_t  telaAtual = INICIALIZACAO;
-uint8_t  telaAnterior = INICIALIZACAO;
-uint8_t  subMenuAtual = 0;
-uint8_t  linhaAtual = 0;
-
-uint32_t ccMotorDuty = 500;
-
-sensorData raw;
-colorData rgb;
-
-ledc_timer_config_t timer = {                   // Confuguração do timer
-
-    .speed_mode      = LEDC_LOW_SPEED_MODE,     // Modo de Velocidade
-    .duty_resolution = CC_MOTOR_RESOLUTION,     // Resolução do ciclo de trabalho (2^13 = 8192 valores | 0 ~ 8191)
-    .timer_num       = LEDC_TIMER_0,            // Utilizado o TIMER 0
-    .freq_hz         = CC_MOTOR_FREQ,           // Frequência de opperação do sinal PWM
-    .clk_cfg         = LEDC_AUTO_CLK            // Seleção automática da fonte geradora do clock (interna ou externa)
-
-};
-ledc_channel_config_t channel_0 = {             // Configuração do canal de PWM
-
-    .gpio_num   = CC_MOTOR_ENA,                 // Pino de saído do PWM
-    .speed_mode = LEDC_LOW_SPEED_MODE,          // Modo de velocidade
-    .channel    = LEDC_CHANNEL_0,               // Canal a vincular ao GPIO
-    .duty       = ccMotorDuty,                  // Duty cicle do PWM
-    .hpoint     = 0
-
-};
-
-
 
 /******************** INTERRUPTS ********************/
     // GPIO ISR HANDLER (IHM BUTTONS, SENSORS)
 
 static void IRAM_ATTR gpio_isr_handler(void *arg){
-    if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE){
+    if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE) {
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueSendFromISR(gpio_event_queue, &gpio_num, NULL);
     }
 }
-
 
 
 /******************** FUNCTIONS ********************/
@@ -253,61 +393,136 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
     // INIT SETUP FUNC
 
 void keyLeft(){
-    if(subMenuAtual == 0)
-        telaAtual > 1 ? telaAtual-- : telaAtual = 2;
-    else if (telaAtual != MENU_ESTEIRA || telaAtual != MENU_MAGAZINE || telaAtual != MENU_SENSOR){
-        telaAtual = telaAtual / 10;
-        subMenuAtual--;
-    }
-}
+    if(app.ihm.linha_selecionada)
+        app.ihm.linha_selecionada = false;
+    else if(app.ihm.tela_atual < 10)
+        app.ihm.tela_atual > 1 ? app.ihm.tela_atual-- : app.ihm.tela_atual = 2;
 
+    else if(app.ihm.tela_atual != MENU_ESTEIRA && app.ihm.tela_atual != MENU_MAGAZINE)
+        app.ihm.tela_atual = app.ihm.tela_atual / 10;
+
+    else if(app.ihm.tela_atual == MENU_ESTEIRA)
+        printf("Mover esteira sentido Anti-Horario\n");
+
+    else if(app.ihm.tela_atual == MENU_MAGAZINE)
+        printf("Mover magazine sentido Anti-Horario\n");
+}
 void keyRight(){
-    if(subMenuAtual == 0){
-        telaAtual < 2 ? telaAtual++ : telaAtual = 1;
-    }
-}
+    if(app.ihm.tela_atual < 10)
+        app.ihm.tela_atual < 2 ? app.ihm.tela_atual++ : app.ihm.tela_atual = 1;
 
+    else if(app.ihm.tela_atual == MENU_ESTEIRA)
+        printf("Mover esteira sentido Horario\n");
+    
+    else if(app.ihm.tela_atual == MENU_MAGAZINE)
+        printf("Mover magazine sentido Horario\n");
+    
+}
 void keyUp(){
-    linhaAtual > 0 ? linhaAtual-- : linhaAtual = 3;
-}
+    if(app.ihm.linha_max != 0 && app.ihm.linha_selecionada == false)
+        app.ihm.linha_atual > app.ihm.linha_min ? app.ihm.linha_atual-- : app.ihm.linha_atual = app.ihm.linha_max;
 
+    if(app.ihm.tela_atual == MENU_ESTEIRA)
+        printf("ACIONAMENTO: Aumentar velocidade da esteira\n");
+
+    else if(app.ihm.tela_atual == MENU_MAGAZINE)
+        printf("ACIONAMENTO: Aumentar velocidade do magazine\n");
+
+    else if(app.ihm.tela_atual == MENU_CAL_ESTEIRA && app.ihm.linha_selecionada) {
+        if(app.ihm.linha_atual == 1)
+            printf("CONFIG: Aumentar velocidade da esteira\n");
+
+        else if(app.ihm.linha_atual == 2)
+            printf("CONFIG: Aumentar rampa da esteira\n");
+
+        else if(app.ihm.linha_atual == 3)
+            printf("CONFIG: Inverter sentido da esteira\n");
+    }
+    else if(app.ihm.tela_atual == MENU_CAL_MAGAZINE && app.ihm.linha_selecionada) {
+        if(app.ihm.linha_atual == 1)
+            printf("CONFIG: Aumentar velocidade do magazine\n");
+
+        else if(app.ihm.linha_atual == 2)
+            printf("CONFIG: Aumentar aceleração do magazine\n");
+
+        else if(app.ihm.linha_atual == 3)
+            printf("CONFIG: Aumentar passos por revolução do magazine\n");
+    }
+    else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_selecionada) {
+        if(app.ihm.linha_atual == 3)
+            printf("CONFIG: Aumentar tempo de amostragem\n");
+    }
+}
 void keyDown(){
-    linhaAtual < 3 ? linhaAtual++ : linhaAtual = 0;
-}
+    if(app.ihm.linha_max != 0 && app.ihm.linha_selecionada == false)
+        app.ihm.linha_atual < app.ihm.linha_max ? app.ihm.linha_atual++ : app.ihm.linha_atual = app.ihm.linha_min;
 
+    if(app.ihm.tela_atual == MENU_ESTEIRA)
+        printf("Diminuir velocidade da esteira\n");
+
+    else if(app.ihm.tela_atual == MENU_MAGAZINE)
+        printf("Diminuir velocidade do magazine\n");
+
+    else if(app.ihm.tela_atual == MENU_CAL_ESTEIRA && app.ihm.linha_selecionada) {
+        if(app.ihm.linha_atual == 1)
+            printf("CONFIG: Diminuir velocidade da esteira\n");
+
+        else if(app.ihm.linha_atual == 2)
+            printf("CONFIG: Diminuir rampa da esteira\n");
+
+        else if(app.ihm.linha_atual == 3)
+            printf("CONFIG: Inverter sentido da esteira\n");
+    }
+    else if(app.ihm.tela_atual == MENU_CAL_MAGAZINE && app.ihm.linha_selecionada) {
+        if(app.ihm.linha_atual == 1)
+            printf("CONFIG: Diminuir velocidade do magazine\n");
+
+        else if(app.ihm.linha_atual == 2)
+            printf("CONFIG: Diminuir aceleração do magazine\n");
+
+        else if(app.ihm.linha_atual == 3)
+            printf("CONFIG: Diminuir passos por revolução do magazine\n");
+    }
+    else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_selecionada) {
+        if(app.ihm.linha_atual == 3)
+            printf("CONFIG: Diminuir tempo de amostragem\n");
+    }
+}
 void keyEnter(){
-    if(subMenuAtual == 0){
-        telaAtual = telaAtual * 10 + linhaAtual;
-        subMenuAtual++;
-    } else if (telaAtual == MENU_ACIONAMENTOS){
-        if(linhaAtual == 0)
-            modoPadrao = !modoPadrao;
-        else if(linhaAtual == 1){
-            telaAtual = MENU_ESTEIRA;
-            subMenuAtual++;
-        }
-        else if(linhaAtual == 2){
-            telaAtual = MENU_MAGAZINE;
-            subMenuAtual++;
-        }
-        else if(linhaAtual == 3){
-            telaAtual = MENU_SENSOR;
-            subMenuAtual++;
-        }
+    if(app.ihm.linha_selecionada){
+        app.ihm.linha_selecionada = false;
+        // passar o valor da linha para a variavel de controle
     }
-    else if(telaAtual == MENU_ESTEIRA){
-        telaAtual = telaAtual / 10;
-        subMenuAtual--;
-    }
-}
+    else if(app.ihm.tela_atual == MENU_PRINCIPAL || (app.ihm.tela_atual == MENU_ACIONAMENTOS && app.ihm.linha_atual != 0) || (app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual != 3))
+        app.ihm.tela_atual = app.ihm.tela_atual * 10 + app.ihm.linha_atual;
 
+    else if(app.ihm.tela_atual == MENU_ACIONAMENTOS && app.ihm.linha_atual == 0)
+        app.operation_mode = !app.operation_mode;
+
+    else if(app.ihm.tela_atual == MENU_ESTEIRA || app.ihm.tela_atual == MENU_MAGAZINE)
+        app.ihm.tela_atual = app.ihm.tela_atual / 10;
+
+    else if(app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual == 3)
+        printf("Restaurar configurações de fábrica\n");
+
+    else if(app.ihm.tela_atual == MENU_CAL_ESTEIRA && app.ihm.linha_atual != 0)
+        app.ihm.linha_selecionada = true;
+    
+    else if(app.ihm.tela_atual == MENU_CAL_MAGAZINE && app.ihm.linha_atual != 0)
+        app.ihm.linha_selecionada = true;
+
+    else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_atual == 3)
+        app.ihm.linha_selecionada = true;
+
+}
 
 void atualizaTela() {
-    if(telaAtual != telaAnterior){
+    if(app.ihm.tela_atual != app.ihm.tela_anterior){
         lcd.clear();
-        telaAnterior = telaAtual;
+        app.ihm.linha_atual = 0;
+        app.ihm.tela_anterior = app.ihm.tela_atual;
     }
-    switch (telaAtual)
+    switch (app.ihm.tela_atual)
     {
     case INICIALIZACAO:
         inicializacao();
@@ -322,6 +537,7 @@ void atualizaTela() {
         menuAcionamentos();
         break;
     case MENU_PROG_ALUNO:
+        menuProgAluno();
         break;
     case MENU_CONFIGURACAO:
         menuConfiguracao();
@@ -335,12 +551,25 @@ void atualizaTela() {
     case MENU_MAGAZINE:
         acionamentoMagazine();
         break;
+    case MENU_SENSOR:
+        detecSensor();
+        break;
+    case MENU_CAL_ESTEIRA:
+        configEsteira();
+        break;
+    case MENU_CAL_MAGAZINE:
+        configMagazine();
+        break;
+    case MENU_CAL_SENSOR:
+        configSensor();
+        break;
     default:
+        menuPrincipal();
         break;
     }
 }
-
 void inicializacao() {
+    app.ihm.linha_max = 0; // Desabilita a seleção de linha
     lcd.setCursor(6,0);
     lcd.print("MYT-D600");
     lcd.setCursor(6,1);
@@ -356,11 +585,12 @@ void inicializacao() {
     }
     delay(1000);
     lcd.clear();
-    telaAtual = MONITORAMENTO;
+    app.ihm.tela_atual = MONITORAMENTO;
     atualizaTela();
 }
-
 void menuPrincipal() {
+    app.ihm.linha_min = 0;
+    app.ihm.linha_max = 3;
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("  1.ACIONAMENTOS");
@@ -370,20 +600,29 @@ void menuPrincipal() {
     lcd.print("  3.CONFIGURACAO");
     lcd.setCursor(0,3);
     lcd.print("  4.CREDITOS");
-    lcd.setCursor(0,linhaAtual);
+    lcd.setCursor(0,app.ihm.linha_atual);
     lcd.print("~");
 }
-
 void monitoramento() {
+    app.ihm.linha_max = 0; // Desabilita a seleção de linha
     lcd.setCursor(0,0);
-    lcd.print("QTD|MODO OP: PROG.");
+    lcd.print("QTD|MODO OP: ");
+    app.operation_mode ? lcd.print("PADRAO ") : lcd.print("PROG.  ");
     lcd.setCursor(0,1);
-    lcd.print("R~3|STATUS : ERRO12");
+    lcd.print("R~");
+    lcd.print(app.qtd_pecas[RED]);
+    lcd.print("|STATUS : ");
+    lcd.print(app.status_printable[app.status]);
     lcd.setCursor(0,2);
-    lcd.print("G~4|VEL(m/min):10");
+    lcd.print("G~");
+    lcd.print(app.qtd_pecas[GREEN]);
+    lcd.print("|VEL(duty): ");
+    lcd.print(app.esteira.duty);
     lcd.setCursor(0,3);
-    lcd.print("B~1|PECAS/MIN : 2");
-    switch (tcs.getColor())
+    lcd.print("B~");
+    lcd.print(app.qtd_pecas[BLUE]);
+    lcd.print("|PECAS/MIN: 2");
+    switch (app.magazine.position)
     {
     case RED:
         lcd.setCursor(0,1);
@@ -402,24 +641,25 @@ void monitoramento() {
         break;
     }
 }
-
 void menuAcionamentos() {
+    app.ihm.linha_min = 0;
+    app.ihm.linha_max = 3;
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("  1.MODO:       ");
     lcd.setCursor(10,0);
-    modoPadrao ? lcd.print("PADRAO") : lcd.print("PROG.");
+    app.operation_mode ? lcd.print("PADRAO") : lcd.print("PROG.");
     lcd.setCursor(0,1);
     lcd.print("  2.CONTROLE ESTEIRA");
     lcd.setCursor(0,2);
     lcd.print("  3.CONTROLE MAG.");
     lcd.setCursor(0,3);
     lcd.print("  4.DETEC. CORES");
-    lcd.setCursor(0,linhaAtual);
+    lcd.setCursor(0,app.ihm.linha_atual);
     lcd.print("~");
 }
-
 void menuProgAluno() {
+    app.ihm.linha_max = 0; // Desabilita a seleção de linha
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("  Utilizar a porta  ");
@@ -430,76 +670,82 @@ void menuProgAluno() {
     lcd.setCursor(0,3);
     lcd.print("hub.com/Mewtry/PI2  ");
 }
-
 void menuConfiguracao() {
+    app.ihm.linha_min = 0;
+    app.ihm.linha_max = 3;
     lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("  1.ESTEIRA");
+    lcd.print("  1.ESTEIRA         ");
     lcd.setCursor(0,1);
-    lcd.print("  2.MAGAZINE");
+    lcd.print("  2.MAGAZINE        ");
     lcd.setCursor(0,2);
-    lcd.print("  3.SENSOR");
-    if(linhaAtual > 2)
-        linhaAtual = 0;
-    lcd.setCursor(0,linhaAtual);
+    lcd.print("  3.SENSOR TCS230   ");
+    lcd.setCursor(0,3);
+    lcd.print("  4.RESTAURAR CONFIG");
+    lcd.setCursor(0,app.ihm.linha_atual);
     lcd.print("~");
 }
-
 void menuCreditos() {
+    app.ihm.linha_max = 0; // Desabilita a seleção de linha
     lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("Por:Matheus Beirao");
+    lcd.print("Por:Matheus Beirao  ");
     lcd.setCursor(0,1);
     lcd.print("    Yasmin Georgetti");
     lcd.setCursor(0,2);
-    lcd.print("    Theo V. Pires");
+    lcd.print("    Theo V. Pires   ");
     lcd.setCursor(0,3);
-    lcd.print("    Denise Costa");
+    lcd.print("    Denise Costa    ");
 }
-
 void acionamentoEsteira() {
+    app.ihm.linha_max = 0; // Desabilita a seleção de linha
     lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("**CONTROLE ESTEIRA**");
+    lcd.print("**CONTROLE*ESTEIRA**");
     lcd.setCursor(0,1);
-    lcd.print(" VOLTAR: ");
+    lcd.print("VOLTAR: ");
     lcd.write(ENTER);
     lcd.setCursor(0,2);
-    lcd.print(" MOVER ");
+    lcd.print("MOVER ");
     lcd.write(ARROW_CW);
-    lcd.print(": ~  VEL+: ");
+    lcd.print(": ~   VEL+: ");
     lcd.write(ARROW_UP);
     lcd.setCursor(0,3);
-    lcd.print(" MOVER ");
+    lcd.print("MOVER ");
     lcd.write(ARROW_CCW);
     lcd.print(": ");
     lcd.write(127);
-    lcd.print("  VEL-: ");
+    lcd.print("   VEL-: ");
     lcd.write(ARROW_DOWN);
 }
-
 void acionamentoMagazine() {
+    app.ihm.linha_max = 0; // Desabilita a seleção de linha
     lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("*CONTROLE  MAGAZINE*");
+    lcd.print("*CONTROLE**MAGAZINE*");
     lcd.setCursor(0,1);
-    lcd.print(" VOLTAR: ");
+    lcd.print("VOLTAR: ");
     lcd.write(ENTER);
     lcd.setCursor(0,2);
-    lcd.print(" MOVER ");
+    lcd.print("MOVER ");
     lcd.write(ARROW_CW);
-    lcd.print(": ~  VEL+: ");
+    lcd.print(": ~   VEL+: ");
     lcd.write(ARROW_UP);
     lcd.setCursor(0,3);
-    lcd.print(" MOVER ");
+    lcd.print("MOVER ");
     lcd.write(ARROW_CCW);
     lcd.print(": ");
     lcd.write(127);
-    lcd.print("  VEL-: ");
+    lcd.print("   VEL-: ");
     lcd.write(ARROW_DOWN);
 }
-
 void detecSensor() {
+    /* tcs.getRaw(main.tcs.raw)*/
+    tcs.getRaw(&app.tcs.raw);
+    tcs.getRGB(&app.tcs.rgb);
+
+    app.ihm.linha_max = 0; // Desabilita a seleção de linha
+
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("   LEITURA TCS230   ");
@@ -507,76 +753,109 @@ void detecSensor() {
     lcd.print("Raw:R");
     lcd.print("     ");
     lcd.setCursor(5,1);
-    lcd.print(tcs.getRawRed());
-    lcd.print(" RGB={");
-    lcd.print(tcs.getRed());
+    lcd.print(app.tcs.raw.value[RED]);
+    lcd.setCursor(11,1);
+    lcd.print("RGB={");
+    if(app.tcs.rgb.value[RED] <= 9)
+        lcd.setCursor(18,1);
+    else if(app.tcs.rgb.value[RED] <= 99)
+        lcd.setCursor(17,1);
+    lcd.print(app.tcs.rgb.value[RED]);
+    lcd.setCursor(19,1);
     lcd.print(",");
     lcd.setCursor(0,2);
     lcd.print("    G");
     lcd.print("     ");
     lcd.setCursor(5,2);
-    lcd.print(tcs.getRawGreen());
-    lcd.setCursor(16,2);
-    lcd.print(tcs.getGreen());
+    lcd.print(app.tcs.raw.value[GREEN]);
+    if(app.tcs.rgb.value[GREEN] <= 9)
+        lcd.setCursor(18,2);
+    else if(app.tcs.rgb.value[GREEN] <= 99)
+        lcd.setCursor(17,2);
+    else
+        lcd.setCursor(16,2);
+    lcd.print(app.tcs.rgb.value[GREEN]);
+    lcd.setCursor(19,2);
     lcd.print(",");
     lcd.setCursor(0,3);
     lcd.print("    B");
     lcd.print("     ");
     lcd.setCursor(5,3);
-    lcd.print(tcs.getRawBlue());
-    lcd.setCursor(16,3);
-    lcd.print(tcs.getBlue());
+    lcd.print(app.tcs.raw.value[BLUE]);
+    if(app.tcs.rgb.value[BLUE] <= 9)
+        lcd.setCursor(18,3);
+    else if(app.tcs.rgb.value[BLUE] <= 99)
+        lcd.setCursor(17,3);
+    else
+        lcd.setCursor(16,3);
+    lcd.print(app.tcs.rgb.value[BLUE]);
+    lcd.setCursor(19,3);
     lcd.print("}");
 }
-
 void configEsteira() {
+    if(app.ihm.linha_atual == 0)
+        app.ihm.linha_atual = 1;
+    app.ihm.linha_min = 1;
+    app.ihm.linha_max = 3;
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("   CONFIG ESTEIRA   ");
     lcd.setCursor(0,1);
-    lcd.print("  Vel (m/min): 10   ");
+    lcd.print("  Vel(m/min): 10    ");
     lcd.setCursor(0,2);
-    lcd.print("  Rampa (ms) : 5000 ");
+    lcd.print("  Rampa(ms) : 5000  ");
     lcd.setCursor(0,3);
-    lcd.print("  Sentido    : CCW  ");
-    if(linhaAtual = 0)
-        linhaAtual = 3;
-    lcd.setCursor(0,linhaAtual);
+    lcd.print("  Sentido   : CCW   ");
+    lcd.setCursor(0,app.ihm.linha_atual);
     lcd.print("~");
+    if(app.ihm.linha_selecionada){
+        lcd.setCursor(13, app.ihm.linha_atual);
+        lcd.print("#");
+    }
 }
-
 void configMagazine() {
+    if(app.ihm.linha_atual == 0)
+        app.ihm.linha_atual = 1; 
+    app.ihm.linha_min = 1;
+    app.ihm.linha_max = 3;
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("  CONFIG  MAGAZINE  ");
     lcd.setCursor(0,1);
-    lcd.print("  Vel (step/s) :  96");
+    lcd.print("  Vel(step/s) :  96 ");
     lcd.setCursor(0,2);
-    lcd.print("  Acc (step/s");
+    lcd.print("  Acc(step/s");
     lcd.write(POW_2);
-    lcd.print("): 240");
+    lcd.print("): 240 ");
     lcd.setCursor(0,3);
-    lcd.print("  Steps/rev     :  48");
-    if(linhaAtual = 0)
-        linhaAtual = 3;
-    lcd.setCursor(0,linhaAtual);
+    lcd.print("  Steps/rev   :  48 ");
+    lcd.setCursor(0,app.ihm.linha_atual);
     lcd.print("~");
+    if(app.ihm.linha_selecionada){
+        lcd.setCursor(15, app.ihm.linha_atual);
+        lcd.print("#");
+    }
 }
-
 void configSensor() {
+    if(app.ihm.linha_atual == 0)
+        app.ihm.linha_atual = 1;
+    app.ihm.linha_min = 1;
+    app.ihm.linha_max = 3;
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("   CONFIG  TCS230   ");
     lcd.setCursor(0,1);
-    lcd.print("  Calibrar branco   ");
+    lcd.print("  Calibrar_branco() ");
     lcd.setCursor(0,2);
-    lcd.print("  Calibrar preto    ");
+    lcd.print("  Calibrar_preto()  ");
     lcd.setCursor(0,3);
     lcd.print("  Amostragem: 100 ms");
-    if(linhaAtual = 0)
-        linhaAtual = 3;
-    lcd.setCursor(0,linhaAtual);
+    lcd.setCursor(0,app.ihm.linha_atual);
     lcd.print("~");
+    if(app.ihm.linha_selecionada){
+        lcd.setCursor(13, app.ihm.linha_atual);
+        lcd.print("#");
+    }
 }
 
 
@@ -607,6 +886,29 @@ void uartBegin(){
     xTaskCreate(uart_event_task, "uart_event_task", 4096, NULL, 2, NULL);
 
 } // end uart_init
+void gpioBegin(){
+    gpio_config_t io_config = {                 // Configuração do pino de interrupção
+        .pin_bit_mask = PIN_MASK,               // Máscara de seleção dos pinos
+        .mode         = GPIO_MODE_INPUT,        // Modo de operação do pino
+        .pull_up_en   = GPIO_PULLUP_ENABLE,     // Habilita resistor de pull-up
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,  // Desabilita resistor de pull-down
+        .intr_type    = GPIO_INTR_ANYEDGE       // Tipo de interrupção
+    };
+
+    gpio_config(&io_config);                    // Chama a função para configurar o GPIO
+
+    // Cria um fila de eventos para lidar com as interrupções do GPIO
+    gpio_event_queue = xQueueCreate(50, sizeof(uint32_t));
+
+    // Instala o manipulador de interrupção GPIO
+    gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
+
+    // Configura o manipulador de interrupção GPIO
+    for(int i = 0; i < 5; i++){
+        gpio_isr_handler_add(app.ihm.button_pins[i], gpio_isr_handler, (void *) app.ihm.button_pins[i]);
+    }
+
+} // end gpioBegin
 
 void responseOK(){
     char * output = (char *) malloc((sizeof(char) * 50));
@@ -617,7 +919,6 @@ void responseOK(){
     printf("%s\r\n", output);
     free(output);
 }
-
 void responseError( uint8_t code, const char * message){
     char * output = (char *) malloc((sizeof(char) * 200));
     StaticJsonDocument<200> json_OUT;
@@ -630,7 +931,6 @@ void responseError( uint8_t code, const char * message){
     printf("%s\r\n", output);
     free(output);
 }
-
 void trataComandoRecebido(uint8_t * dt){
     // printf("Dado em tratamento: %s\r\n", dt);
     if(dt[0] == 'v'){
@@ -653,8 +953,7 @@ void trataComandoRecebido(uint8_t * dt){
                 return;
             }
             if( ! strcmp(jsonType, "menu")){
-                telaAtual = json_IN["menu"];
-                subMenuAtual = json_IN["submenu"];
+                app.ihm.tela_atual = json_IN["menu"];
                 responseOK();
                 return;
             }
@@ -673,136 +972,54 @@ void trataComandoRecebido(uint8_t * dt){
 
 }
 
-void gpioBegin(){
-    gpio_config_t io_config = {                 // Configuração do pino de interrupção
-        .pin_bit_mask = PIN_MASK,               // Máscara de seleção dos pinos
-        .mode         = GPIO_MODE_INPUT,        // Modo de operação do pino
-        .pull_up_en   = GPIO_PULLUP_ENABLE,     // Habilita resistor de pull-up
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,  // Desabilita resistor de pull-down
-        .intr_type    = GPIO_INTR_ANYEDGE       // Tipo de interrupção
-    };
 
-    gpio_config(&io_config);                    // Chama a função para configurar o GPIO
-
-    // Cria um fila de eventos para lidar com as interrupções do GPIO
-    gpio_event_queue = xQueueCreate(50, sizeof(uint32_t));
-
-    // Instala o manipulador de interrupção GPIO
-    gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
-
-    // Configura o manipulador de interrupção GPIO
-    for(int i = 0; i < 5; i++){
-        gpio_isr_handler_add(buttonPins[i], gpio_isr_handler, (void *) buttonPins[i]);
-    }
-
-} // end gpioBegin
 
 /******************************************************************/
 void motorByFadeTime(){
-    digitalWrite(CC_MOTOR_IN1, HIGH);
-    digitalWrite(CC_MOTOR_IN2, LOW);
+    digitalWrite(ESTEIRA_IN1, HIGH);
+    digitalWrite(ESTEIRA_IN2, LOW);
 
     ledc_set_fade_time_and_start(
-        channel_0.speed_mode, 
-        channel_0.channel,
+        app.esteira.channel.speed_mode, 
+        app.esteira.channel.channel,
         TOP, 
-        CC_MOTOR_FADE_TIME, 
+        ESTEIRA_FADE_TIME, 
         LEDC_FADE_WAIT_DONE
     );
 
     delay(2000);
 
     ledc_set_fade_time_and_start(
-        channel_0.speed_mode, 
-        channel_0.channel, 
+        app.esteira.channel.speed_mode, 
+        app.esteira.channel.channel, 
         0, 
-        CC_MOTOR_FADE_TIME, 
+        ESTEIRA_FADE_TIME, 
         LEDC_FADE_WAIT_DONE
     );
 
-    digitalWrite(CC_MOTOR_IN1, LOW);
-    digitalWrite(CC_MOTOR_IN2, HIGH);
+    digitalWrite(ESTEIRA_IN1, LOW);
+    digitalWrite(ESTEIRA_IN2, HIGH);
     
     ledc_set_fade_time_and_start(
-        channel_0.speed_mode, 
-        channel_0.channel,
+        app.esteira.channel.speed_mode, 
+        app.esteira.channel.channel,
         TOP, 
-        CC_MOTOR_FADE_TIME, 
+        ESTEIRA_FADE_TIME, 
         LEDC_FADE_WAIT_DONE
     );
 
     delay(2000);
 
     ledc_set_fade_time_and_start(
-        channel_0.speed_mode, 
-        channel_0.channel, 
+        app.esteira.channel.speed_mode, 
+        app.esteira.channel.channel, 
         0, 
-        CC_MOTOR_FADE_TIME, 
+        ESTEIRA_FADE_TIME, 
         LEDC_FADE_WAIT_DONE
     );
 
-    digitalWrite(CC_MOTOR_IN1, LOW);
-    digitalWrite(CC_MOTOR_IN2, LOW);
-
-    delay(1000);
-}
-
-void motorByFadeStep(){
-
-    ledc_set_duty_and_update(channel_0.speed_mode, channel_0.channel, 0, 0);
-
-    delay(300);
-
-    digitalWrite(CC_MOTOR_IN1, HIGH);
-    digitalWrite(CC_MOTOR_IN2, LOW);
-
-    ledc_set_fade_step_and_start(
-        channel_0.speed_mode, 
-        channel_0.channel,
-        TOP, 
-        CC_MOTOR_FADE_STEP,
-        1, 
-        LEDC_FADE_WAIT_DONE
-    );
-
-    delay(2000);
-
-    ledc_set_fade_step_and_start(
-        channel_0.speed_mode, 
-        channel_0.channel, 
-        900, 
-        CC_MOTOR_FADE_STEP,
-        1, 
-        LEDC_FADE_WAIT_DONE
-    );
-
-    delay(2000);
-
-    digitalWrite(CC_MOTOR_IN1, LOW);
-    digitalWrite(CC_MOTOR_IN2, HIGH);
-    
-    ledc_set_fade_step_and_start(
-        channel_0.speed_mode, 
-        channel_0.channel,
-        TOP, 
-        CC_MOTOR_FADE_STEP,
-        1,
-        LEDC_FADE_WAIT_DONE
-    );
-
-    delay(2000);
-
-    digitalWrite(CC_MOTOR_IN1, LOW);
-    digitalWrite(CC_MOTOR_IN2, LOW);
-    
-    ledc_set_fade_step_and_start(
-        channel_0.speed_mode, 
-        channel_0.channel, 
-        0, 
-        4095,
-        1, 
-        LEDC_FADE_WAIT_DONE
-    );    
+    digitalWrite(ESTEIRA_IN1, LOW);
+    digitalWrite(ESTEIRA_IN2, LOW);
 
     delay(1000);
 }
@@ -863,8 +1080,8 @@ static void uart_event_task(void *pvParameters){
 static void principal_task(void *pvParameters){
 
     while(true){
-        if(xQueueReceive(gpio_event_queue, &keyPressed, pdMS_TO_TICKS(1000))){
-            switch (keyPressed)
+        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, pdMS_TO_TICKS(1000))){
+            switch (app.ihm.key_pressed)
             {
             case KEY_LEFT:
                 keyLeft();
@@ -885,7 +1102,6 @@ static void principal_task(void *pvParameters){
                 break;
             }
         }
-
         atualizaTela();
     }
 }
@@ -893,21 +1109,13 @@ static void principal_task(void *pvParameters){
 /********************** SETUP **********************/
 void setup(void){
     // SETUP AND TASK CREATE
-    // Serial.begin(115200);
     uartBegin();
+    gpioBegin();
 
     tcs.begin();
-    tcs.setSampling(500);
-    sensorData darkCal = {
-        .value = {4162, 3764, 5166}
-    };
-    sensorData whiteCal = {
-        .value = {50551, 46568, 60065}
-    };
-    tcs.setDarkCal(&darkCal);
-    tcs.setWhiteCal(&whiteCal);
-
-    gpioBegin();
+    tcs.setSampling(app.tcs.read_time);
+    tcs.setDarkCal(&app.tcs.fd);
+    tcs.setWhiteCal(&app.tcs.fw);
 
     lcd.init();
     lcd.createChar(ARROW_UP,   arrowUp  );
@@ -922,11 +1130,11 @@ void setup(void){
     xTaskCreate(principal_task, "principal_task", 4096, NULL, 3, NULL); // Cria a task com prioridade 3
 
     // ledc_timer_config(&timer);
-    // ledc_channel_config(&channel_0);
+    // ledc_channel_config(&app.esteira.channel);
     // ledc_fade_func_install(0);
 
-    // pinMode(CC_MOTOR_IN1, OUTPUT);
-    // pinMode(CC_MOTOR_IN2, OUTPUT);
+    // pinMode(ESTEIRA_IN1, OUTPUT);
+    // pinMode(ESTEIRA_IN2, OUTPUT);
 }
 /********************** LOOP **********************/
 void loop(void){
@@ -943,7 +1151,7 @@ void loop(void){
 
     // motorByFadeStep();
 
-    // tela(telaAtual);
+    // tela(app.ihm.tela_atual);
     // delay(1000);
 
 }

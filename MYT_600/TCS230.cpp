@@ -43,6 +43,13 @@ void TCS230::initialize(void) {
         _fd.value[i] = 6000L;  // just typical values
         _fw.value[i] = 55000L; // just typical values
     }
+
+    _fo.value[RED]   = 60000;
+    _fo.value[GREEN] = 33;
+    _fo.value[BLUE]  = 3300;
+    _rgb.value[RED]  = 100;
+    _rgb.value[GREEN]= 9;
+    _rgb.value[BLUE] = 99;
 }
 
 TCS230::TCS230(gpio_num_t out, uint8_t s2, uint8_t s3) {
@@ -145,7 +152,7 @@ void TCS230::setFrequency(uint8_t f) {
     setFrequencyInternal(f);
 }
 
-void TCS230::setSampling(uint8_t t) {
+void TCS230::setSampling(uint16_t t) {
     if (_readTime > 0 && _readTime <= 1000)
         _readTime = t;
 }

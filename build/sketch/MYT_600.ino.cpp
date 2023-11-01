@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#line 1 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 1 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 /**************************************************************************/
 /**
  * @file    MYT_600.ino
@@ -101,23 +101,21 @@ gpio_num_t buttonPins[] = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN
 bool modoPadrao = true;
 
 enum telasIHM {
-    INICIALIZACAO     = 0,
-    MENU_PRINCIPAL    = 1,
-    MONITORAMENTO     = 2,
-
-    // Menu anterior * 10 + linhaAtual
-    MENU_ACIONAMENTOS = 10, 
-    MENU_PROG_ALUNO   = 11,
-    MENU_CALIBRACAO   = 12,
-    MENU_CREDITOS     = 13,
-
-    MENU_ESTEIRA      = 100,
-    MENU_MAGAZINE     = 101,
-    MENU_SENSOR       = 102,
-
-    MENU_CAL_ESTEIRA  = 120,
-    MENU_CAL_MAGAZINE = 121,
-    MENU_CAL_SENSOR   = 122
+    INICIALIZACAO  = 0,
+    MENU_PRINCIPAL = 1,
+        MENU_ACIONAMENTOS = 10,
+         // MODO OP   
+            MENU_ESTEIRA      = 101,
+            MENU_MAGAZINE     = 102,
+            MENU_SENSOR       = 103,
+        MENU_PROG_ALUNO   = 11,
+        MENU_CONFIGURACAO = 12,
+            MENU_CAL_ESTEIRA  = 120,
+            MENU_CAL_MAGAZINE = 121,
+            MENU_CAL_SENSOR   = 122,
+         // RESTAURAR CONFIG
+        MENU_CREDITOS     = 13,
+    MONITORAMENTO  = 2
 };
 
 enum keys {
@@ -134,7 +132,8 @@ enum caracters {
     ARROW_DOWN,
     ARROW_CW,
     ARROW_CCW,
-    ENTER
+    ENTER,
+    POW_2
 };
 
 uint8_t arrowUp[8] = {
@@ -189,16 +188,26 @@ uint8_t enter[8] = {
     0b00100
 };
 
+uint8_t pow_2[8] = {
+    0b01110,
+    0b00001,
+    0b00110,
+    0b01000,
+    0b01111,
+    0b00000,
+    0b00000
+};
+
 uint32_t keyPressed = KEY_NONE;
-uint8_t  telaAtual = INICIALIZACAO;
-uint8_t  telaAnterior = INICIALIZACAO;
-uint8_t  subMenuAtual = 0;
-uint8_t  linhaAtual = 0;
+uint8_t telaAtual = INICIALIZACAO;
+uint8_t telaAnterior = INICIALIZACAO;
+uint8_t subMenuAtual = 0;
+uint8_t linhaAtual = 0;
+uint8_t linhaMin = 0;
+uint8_t linhaMax = 3;
+bool linhaSelecionada = false;
 
 uint32_t ccMotorDuty = 500;
-
-sensorData raw;
-colorData rgb;
 
 ledc_timer_config_t timer = {                   // Confuguração do timer
 
@@ -224,65 +233,72 @@ ledc_channel_config_t channel_0 = {             // Configuração do canal de PW
 /******************** INTERRUPTS ********************/
     // GPIO ISR HANDLER (IHM BUTTONS, SENSORS)
 
-#line 247 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 253 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void keyLeft();
-#line 256 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 270 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void keyRight();
-#line 262 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 282 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void keyUp();
-#line 266 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 318 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void keyDown();
-#line 270 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 354 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void keyEnter();
-#line 297 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 387 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void atualizaTela();
-#line 335 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 439 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void inicializacao();
-#line 355 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 459 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void menuPrincipal();
-#line 369 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 474 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void monitoramento();
-#line 398 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 503 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void menuAcionamentos();
-#line 413 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
-void menuCalibracao();
-#line 428 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 520 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void menuProgAluno();
+#line 532 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void menuConfiguracao();
+#line 547 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void menuCreditos();
-#line 440 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 559 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void acionamentoEsteira();
-#line 460 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 580 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void acionamentoMagazine();
-#line 481 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 601 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void detecSensor();
+#line 656 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void configEsteira();
+#line 677 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void configMagazine();
+#line 700 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+void configSensor();
+#line 723 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void uartBegin();
-#line 509 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 751 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void responseOK();
-#line 519 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 761 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void responseError( uint8_t code, const char * message);
-#line 532 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 774 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void trataComandoRecebido(uint8_t * dt);
-#line 574 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 816 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void gpioBegin();
-#line 599 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 841 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void motorByFadeTime();
-#line 648 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 890 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void motorByFadeStep();
-#line 713 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 955 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 static void uart_event_task(void *pvParameters);
-#line 761 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 1003 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 static void principal_task(void *pvParameters);
-#line 792 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 1033 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void setup(void);
-#line 829 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 1071 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 void loop(void);
-#line 225 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 234 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 static void IRAM_ATTR gpio_isr_handler(void *arg){
-    if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE){
+    if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE) {
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueSendFromISR(gpio_event_queue, &gpio_num, NULL);
-
-    }else{
-        // xQueueReset(gpio_event_queue);
     }
 }
 
@@ -298,58 +314,143 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
     // INIT SETUP FUNC
 
 void keyLeft(){
-    if(subMenuAtual == 0)
+    if(linhaSelecionada)
+        linhaSelecionada = false;
+    else if(subMenuAtual == 0) // || telaAtual < 10
         telaAtual > 1 ? telaAtual-- : telaAtual = 2;
-    else if (telaAtual != MENU_ESTEIRA){
+
+    else if(telaAtual != MENU_ESTEIRA && telaAtual != MENU_MAGAZINE) {
         telaAtual = telaAtual / 10;
         subMenuAtual--;
     }
+    else if(telaAtual == MENU_ESTEIRA)
+        printf("Mover esteira sentido Anti-Horario\n");
+
+    else if(telaAtual == MENU_MAGAZINE)
+        printf("Mover magazine sentido Anti-Horario\n");
 }
 
 void keyRight(){
-    if(subMenuAtual == 0){
+    if(subMenuAtual == 0)
         telaAtual < 2 ? telaAtual++ : telaAtual = 1;
-    }
+
+    else if(telaAtual == MENU_ESTEIRA)
+        printf("Mover esteira sentido Horario\n");
+    
+    else if(telaAtual == MENU_MAGAZINE)
+        printf("Mover magazine sentido Horario\n");
+    
 }
 
 void keyUp(){
-    linhaAtual > 0 ? linhaAtual-- : linhaAtual = 3;
+    if(linhaMax != 0 && linhaSelecionada == false)
+        linhaAtual > linhaMin ? linhaAtual-- : linhaAtual = linhaMax;
+
+    if(telaAtual == MENU_ESTEIRA)
+        printf("ACIONAMENTO: Aumentar velocidade da esteira\n");
+
+    else if(telaAtual == MENU_MAGAZINE)
+        printf("ACIONAMENTO: Aumentar velocidade do magazine\n");
+
+    else if(telaAtual == MENU_CAL_ESTEIRA && linhaSelecionada) {
+        if(linhaAtual == 1)
+            printf("CONFIG: Aumentar velocidade da esteira\n");
+
+        else if(linhaAtual == 2)
+            printf("CONFIG: Aumentar rampa da esteira\n");
+
+        else if(linhaAtual == 3)
+            printf("CONFIG: Inverter sentido da esteira\n");
+    }
+    else if(telaAtual == MENU_CAL_MAGAZINE && linhaSelecionada) {
+        if(linhaAtual == 1)
+            printf("CONFIG: Aumentar velocidade do magazine\n");
+
+        else if(linhaAtual == 2)
+            printf("CONFIG: Aumentar aceleração do magazine\n");
+
+        else if(linhaAtual == 3)
+            printf("CONFIG: Aumentar passos por revolução do magazine\n");
+    }
+    else if(telaAtual == MENU_CAL_SENSOR && linhaSelecionada) {
+        if(linhaAtual == 3)
+            printf("CONFIG: Aumentar tempo de amostragem\n");
+    }
 }
 
 void keyDown(){
-    linhaAtual < 3 ? linhaAtual++ : linhaAtual = 0;
+    if(linhaMax != 0 && linhaSelecionada == false)
+        linhaAtual < linhaMax ? linhaAtual++ : linhaAtual = linhaMin;
+
+    if(telaAtual == MENU_ESTEIRA)
+        printf("Diminuir velocidade da esteira\n");
+
+    else if(telaAtual == MENU_MAGAZINE)
+        printf("Diminuir velocidade do magazine\n");
+
+    else if(telaAtual == MENU_CAL_ESTEIRA && linhaSelecionada) {
+        if(linhaAtual == 1)
+            printf("CONFIG: Diminuir velocidade da esteira\n");
+
+        else if(linhaAtual == 2)
+            printf("CONFIG: Diminuir rampa da esteira\n");
+
+        else if(linhaAtual == 3)
+            printf("CONFIG: Inverter sentido da esteira\n");
+    }
+    else if(telaAtual == MENU_CAL_MAGAZINE && linhaSelecionada) {
+        if(linhaAtual == 1)
+            printf("CONFIG: Diminuir velocidade do magazine\n");
+
+        else if(linhaAtual == 2)
+            printf("CONFIG: Diminuir aceleração do magazine\n");
+
+        else if(linhaAtual == 3)
+            printf("CONFIG: Diminuir passos por revolução do magazine\n");
+    }
+    else if(telaAtual == MENU_CAL_SENSOR && linhaSelecionada) {
+        if(linhaAtual == 3)
+            printf("CONFIG: Diminuir tempo de amostragem\n");
+    }
 }
 
 void keyEnter(){
-    if(subMenuAtual == 0){
+    if(linhaSelecionada){
+        linhaSelecionada = false;
+        // passar o valor da linha para a variavel de controle
+    }
+    else if(telaAtual == MENU_PRINCIPAL || (telaAtual == MENU_ACIONAMENTOS && linhaAtual != 0) 
+                                   || (telaAtual == MENU_CONFIGURACAO && linhaAtual != 3)) {
         telaAtual = telaAtual * 10 + linhaAtual;
         subMenuAtual++;
-    } else if (telaAtual == MENU_ACIONAMENTOS){
-        if(linhaAtual == 0)
-            modoPadrao = !modoPadrao;
-        else if(linhaAtual == 1){
-            telaAtual = MENU_ESTEIRA;
-            subMenuAtual++;
-        }
-        else if(linhaAtual == 2){
-            telaAtual = MENU_MAGAZINE;
-            subMenuAtual++;
-        }
-        else if(linhaAtual == 3){
-            telaAtual = MENU_SENSOR;
-            subMenuAtual++;
-        }
     }
-    else if(telaAtual == MENU_ESTEIRA){
+    else if(telaAtual == MENU_ACIONAMENTOS && linhaAtual == 0)
+        modoPadrao = !modoPadrao;
+
+    else if(telaAtual == MENU_ESTEIRA || telaAtual == MENU_MAGAZINE) {
         telaAtual = telaAtual / 10;
         subMenuAtual--;
     }
+
+    else if(telaAtual == MENU_CONFIGURACAO && linhaAtual == 3)
+        printf("Restaurar configurações de fábrica\n");
+
+    else if(telaAtual == MENU_CAL_ESTEIRA && linhaAtual != 0)
+        linhaSelecionada = true;
+    
+    else if(telaAtual == MENU_CAL_MAGAZINE && linhaAtual != 0)
+        linhaSelecionada = true;
+
+    else if(telaAtual == MENU_CAL_SENSOR && linhaAtual == 3)
+        linhaSelecionada = true;
+
 }
 
 
-void atualizaTela(){
+void atualizaTela() {
     if(telaAtual != telaAnterior){
         lcd.clear();
+        linhaAtual = 0;
         telaAnterior = telaAtual;
     }
     switch (telaAtual)
@@ -367,9 +468,10 @@ void atualizaTela(){
         menuAcionamentos();
         break;
     case MENU_PROG_ALUNO:
+        menuProgAluno();
         break;
-    case MENU_CALIBRACAO:
-        menuCalibracao();
+    case MENU_CONFIGURACAO:
+        menuConfiguracao();
         break;
     case MENU_CREDITOS:
         menuCreditos();
@@ -380,12 +482,25 @@ void atualizaTela(){
     case MENU_MAGAZINE:
         acionamentoMagazine();
         break;
+    case MENU_SENSOR:
+        detecSensor();
+        break;
+    case MENU_CAL_ESTEIRA:
+        configEsteira();
+        break;
+    case MENU_CAL_MAGAZINE:
+        configMagazine();
+        break;
+    case MENU_CAL_SENSOR:
+        configSensor();
+        break;
     default:
+        menuPrincipal();
         break;
     }
 }
-
-void inicializacao(){
+void inicializacao() {
+    linhaMax = 0; // Desabilita a seleção de linha
     lcd.setCursor(6,0);
     lcd.print("MYT-D600");
     lcd.setCursor(6,1);
@@ -404,22 +519,23 @@ void inicializacao(){
     telaAtual = MONITORAMENTO;
     atualizaTela();
 }
-
-void menuPrincipal(){
+void menuPrincipal() {
+    linhaMin = 0;
+    linhaMax = 3;
     lcd.noBlink();
     lcd.setCursor(0,0);
     lcd.print("  1.ACIONAMENTOS");
     lcd.setCursor(0,1);
     lcd.print("  2.PROG ALUNO");
     lcd.setCursor(0,2);
-    lcd.print("  3.CALIBRACAO");
+    lcd.print("  3.CONFIGURACAO");
     lcd.setCursor(0,3);
     lcd.print("  4.CREDITOS");
     lcd.setCursor(0,linhaAtual);
     lcd.print("~");
 }
-
-void monitoramento(){
+void monitoramento() {
+    linhaMax = 0; // Desabilita a seleção de linha  
     lcd.setCursor(0,0);
     lcd.print("QTD|MODO OP: PROG.");
     lcd.setCursor(0,1);
@@ -447,11 +563,13 @@ void monitoramento(){
         break;
     }
 }
-
-void menuAcionamentos(){
+void menuAcionamentos() {
+    linhaMin = 0;
+    linhaMax = 3;
     lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("  1.MODO: ");
+    lcd.print("  1.MODO:       ");
+    lcd.setCursor(10,0);
     modoPadrao ? lcd.print("PADRAO") : lcd.print("PROG.");
     lcd.setCursor(0,1);
     lcd.print("  2.CONTROLE ESTEIRA");
@@ -462,72 +580,206 @@ void menuAcionamentos(){
     lcd.setCursor(0,linhaAtual);
     lcd.print("~");
 }
-
-void menuCalibracao(){
+void menuProgAluno() {
+    linhaMax = 0; // Desabilita a seleção de linha
     lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("  1.ESTEIRA");
+    lcd.print("  Utilizar a porta  ");
     lcd.setCursor(0,1);
-    lcd.print("  2.MAGAZINE");
+    lcd.print("serial p/ o controle");
     lcd.setCursor(0,2);
-    lcd.print("  3.SENSOR");
-    if(linhaAtual > 2){
-        linhaAtual = 0;
-    }
+    lcd.print("Projeto: https://git");
+    lcd.setCursor(0,3);
+    lcd.print("hub.com/Mewtry/PI2  ");
+}
+void menuConfiguracao() {
+    linhaMin = 0;
+    linhaMax = 3;
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("  1.ESTEIRA         ");
+    lcd.setCursor(0,1);
+    lcd.print("  2.MAGAZINE        ");
+    lcd.setCursor(0,2);
+    lcd.print("  3.SENSOR TCS230   ");
+    lcd.setCursor(0,3);
+    lcd.print("  4.RESTAURAR CONFIG");
     lcd.setCursor(0,linhaAtual);
     lcd.print("~");
 }
-
-void menuCreditos(){
+void menuCreditos() {
+    linhaMax = 0; // Desabilita a seleção de linha
     lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("Por:Matheus Beirao");
+    lcd.print("Por:Matheus Beirao  ");
     lcd.setCursor(0,1);
     lcd.print("    Yasmin Georgetti");
     lcd.setCursor(0,2);
-    lcd.print("    Theo V. Pires");
+    lcd.print("    Theo V. Pires   ");
     lcd.setCursor(0,3);
-    lcd.print("    Denise Costa");
+    lcd.print("    Denise Costa    ");
 }
-
-void acionamentoEsteira(){
+void acionamentoEsteira() {
+    linhaMax = 0; // Desabilita a seleção de linha
+    lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("**CONTROLE ESTEIRA**");
+    lcd.print("**CONTROLE*ESTEIRA**");
     lcd.setCursor(0,1);
-    lcd.print(" VOLTAR: ");
+    lcd.print("VOLTAR: ");
     lcd.write(ENTER);
     lcd.setCursor(0,2);
-    lcd.print(" MOVER ");
+    lcd.print("MOVER ");
     lcd.write(ARROW_CW);
-    lcd.print(": ~  VEL+: ");
+    lcd.print(": ~   VEL+: ");
     lcd.write(ARROW_UP);
     lcd.setCursor(0,3);
-    lcd.print(" MOVER ");
+    lcd.print("MOVER ");
     lcd.write(ARROW_CCW);
     lcd.print(": ");
     lcd.write(127);
-    lcd.print("  VEL-: ");
+    lcd.print("   VEL-: ");
     lcd.write(ARROW_DOWN);
 }
-
 void acionamentoMagazine() {
+    linhaMax = 0; // Desabilita a seleção de linha
+    lcd.noBlink();
     lcd.setCursor(0,0);
-    lcd.print("*CONTROLE  MAGAZINE*");
+    lcd.print("*CONTROLE**MAGAZINE*");
     lcd.setCursor(0,1);
-    lcd.print(" VOLTAR: ");
+    lcd.print("VOLTAR: ");
     lcd.write(ENTER);
     lcd.setCursor(0,2);
-    lcd.print(" MOVER ");
+    lcd.print("MOVER ");
     lcd.write(ARROW_CW);
-    lcd.print(": ~  VEL+: ");
+    lcd.print(": ~   VEL+: ");
     lcd.write(ARROW_UP);
     lcd.setCursor(0,3);
-    lcd.print(" MOVER ");
+    lcd.print("MOVER ");
     lcd.write(ARROW_CCW);
     lcd.print(": ");
     lcd.write(127);
-    lcd.print("  VEL-: ");
+    lcd.print("   VEL-: ");
     lcd.write(ARROW_DOWN);
+}
+void detecSensor() {
+    sensorData raw;
+    colorData rgb;
+
+    tcs.getRaw(&raw);
+    tcs.getRGB(&rgb);
+
+    linhaMax = 0; // Desabilita a seleção de linha
+
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("   LEITURA TCS230   ");
+    lcd.setCursor(0,1);
+    lcd.print("Raw:R");
+    lcd.print("     ");
+    lcd.setCursor(5,1);
+    lcd.print(raw.value[RED]);
+    lcd.setCursor(11,1);
+    lcd.print("RGB={");
+    if(rgb.value[RED] <= 9)
+        lcd.setCursor(18,1);
+    else if(rgb.value[RED] <= 99)
+        lcd.setCursor(17,1);
+    lcd.print(rgb.value[RED]);
+    lcd.setCursor(19,1);
+    lcd.print(",");
+    lcd.setCursor(0,2);
+    lcd.print("    G");
+    lcd.print("     ");
+    lcd.setCursor(5,2);
+    lcd.print(raw.value[GREEN]);
+    if(rgb.value[GREEN] <= 9)
+        lcd.setCursor(18,2);
+    else if(rgb.value[GREEN] <= 99)
+        lcd.setCursor(17,2);
+    else
+        lcd.setCursor(16,2);
+    lcd.print(rgb.value[GREEN]);
+    lcd.setCursor(19,2);
+    lcd.print(",");
+    lcd.setCursor(0,3);
+    lcd.print("    B");
+    lcd.print("     ");
+    lcd.setCursor(5,3);
+    lcd.print(raw.value[BLUE]);
+    if(rgb.value[BLUE] <= 9)
+        lcd.setCursor(18,3);
+    else if(rgb.value[BLUE] <= 99)
+        lcd.setCursor(17,3);
+    else
+        lcd.setCursor(16,3);
+    lcd.print(rgb.value[BLUE]);
+    lcd.setCursor(19,3);
+    lcd.print("}");
+}
+void configEsteira() {
+    if(linhaAtual == 0)
+        linhaAtual = 1;
+    linhaMin = 1;
+    linhaMax = 3;
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("   CONFIG ESTEIRA   ");
+    lcd.setCursor(0,1);
+    lcd.print("  Vel(m/min): 10    ");
+    lcd.setCursor(0,2);
+    lcd.print("  Rampa(ms) : 5000  ");
+    lcd.setCursor(0,3);
+    lcd.print("  Sentido   : CCW   ");
+    lcd.setCursor(0,linhaAtual);
+    lcd.print("~");
+    if(linhaSelecionada){
+        lcd.setCursor(13, linhaAtual);
+        lcd.print("#");
+    }
+}
+void configMagazine() {
+    if(linhaAtual == 0)
+        linhaAtual = 1; 
+    linhaMin = 1;
+    linhaMax = 3;
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("  CONFIG  MAGAZINE  ");
+    lcd.setCursor(0,1);
+    lcd.print("  Vel(step/s) :  96 ");
+    lcd.setCursor(0,2);
+    lcd.print("  Acc(step/s");
+    lcd.write(POW_2);
+    lcd.print("): 240 ");
+    lcd.setCursor(0,3);
+    lcd.print("  Steps/rev   :  48 ");
+    lcd.setCursor(0,linhaAtual);
+    lcd.print("~");
+    if(linhaSelecionada){
+        lcd.setCursor(15, linhaAtual);
+        lcd.print("#");
+    }
+}
+void configSensor() {
+    if(linhaAtual == 0)
+        linhaAtual = 1;
+    linhaMin = 1;
+    linhaMax = 3;
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("   CONFIG  TCS230   ");
+    lcd.setCursor(0,1);
+    lcd.print("  Calibrar_branco() ");
+    lcd.setCursor(0,2);
+    lcd.print("  Calibrar_preto()  ");
+    lcd.setCursor(0,3);
+    lcd.print("  Amostragem: 100 ms");
+    lcd.setCursor(0,linhaAtual);
+    lcd.print("~");
+    if(linhaSelecionada){
+        lcd.setCursor(13, linhaAtual);
+        lcd.print("#");
+    }
 }
 
 
@@ -836,7 +1088,6 @@ static void principal_task(void *pvParameters){
                 break;
             }
         }
-
         atualizaTela();
     }
 }
@@ -866,6 +1117,7 @@ void setup(void){
     lcd.createChar(ARROW_CW,   arrowCW  );
     lcd.createChar(ARROW_CCW,  arrowCCW );
     lcd.createChar(ENTER,      enter    );
+    lcd.createChar(POW_2,      pow_2    );
     lcd.backlight();
     atualizaTela();
 
