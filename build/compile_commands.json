@@ -242,11 +242,11 @@
    "-IC:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\ArduinoJson\\src",
    "-IC:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\AccelStepper\\src",
    "-IC:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\LiquidCrystal_I2C",
-   "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\sketch\\TCS230.cpp",
+   "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\sketch\\MYT_600.ino.cpp",
    "-o",
-   "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\sketch\\TCS230.cpp.o"
+   "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\sketch\\MYT_600.ino.cpp.o"
   ],
-  "file": "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\sketch\\TCS230.cpp"
+  "file": "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\sketch\\MYT_600.ino.cpp"
  },
  {
   "directory": "c:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware",
@@ -491,11 +491,11 @@
    "-IC:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\ArduinoJson\\src",
    "-IC:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\AccelStepper\\src",
    "-IC:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\LiquidCrystal_I2C",
-   "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\sketch\\MYT_600.ino.cpp",
+   "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\sketch\\TCS230.cpp",
    "-o",
-   "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\sketch\\MYT_600.ino.cpp.o"
+   "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\sketch\\TCS230.cpp.o"
   ],
-  "file": "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\sketch\\MYT_600.ino.cpp"
+  "file": "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\sketch\\TCS230.cpp"
  },
  {
   "directory": "c:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware",
@@ -989,11 +989,11 @@
    "-IC:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\ArduinoJson\\src",
    "-IC:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\AccelStepper\\src",
    "-IC:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\LiquidCrystal_I2C",
-   "C:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\AccelStepper\\src\\AccelStepper.cpp",
+   "C:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\AccelStepper\\src\\MultiStepper.cpp",
    "-o",
-   "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\libraries\\AccelStepper\\AccelStepper.cpp.o"
+   "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\libraries\\AccelStepper\\MultiStepper.cpp.o"
   ],
-  "file": "C:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\AccelStepper\\src\\AccelStepper.cpp"
+  "file": "C:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\AccelStepper\\src\\MultiStepper.cpp"
  },
  {
   "directory": "c:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware",
@@ -1238,11 +1238,11 @@
    "-IC:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\ArduinoJson\\src",
    "-IC:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\AccelStepper\\src",
    "-IC:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\LiquidCrystal_I2C",
-   "C:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\AccelStepper\\src\\MultiStepper.cpp",
+   "C:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\AccelStepper\\src\\AccelStepper.cpp",
    "-o",
-   "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\libraries\\AccelStepper\\MultiStepper.cpp.o"
+   "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\build\\libraries\\AccelStepper\\AccelStepper.cpp.o"
   ],
-  "file": "C:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\AccelStepper\\src\\MultiStepper.cpp"
+  "file": "C:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\AccelStepper\\src\\AccelStepper.cpp"
  },
  {
   "directory": "c:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware",

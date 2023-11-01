@@ -105,7 +105,7 @@ enum sentido_rotacao {
     CCW
 };
 enum status {
-    OK,
+    STATE_OK,
     RUNNING,
     ERROR_1,
     ERROR_2,
@@ -123,6 +123,7 @@ typedef struct {
     ledc_timer_config_t   timer;
     ledc_channel_config_t channel;
     uint32_t              duty;
+    uint32_t              duty_acionamento;
     uint32_t              duty_max;
     uint32_t              velocidade;
     uint32_t              rampa_acel;
@@ -134,9 +135,12 @@ typedef struct {
 } esteira_config_t;
 
 typedef struct {
-    uint32_t magazine_vel;
-    uint32_t magazine_acel;
-    uint32_t magazine_steps_per_rev;
+    uint32_t velocidade;
+    uint32_t velocidade_acionamento;
+    uint32_t velocidade_max;
+    uint32_t aceleracao;
+    uint32_t aceleracao_max;
+    uint32_t steps_per_rev;
     uint8_t  position;
 } magazine_config_t;
 
@@ -204,8 +208,6 @@ static const char * versao = "1.0.0";
 
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = NULL;
-// gpio_num_t buttonPins[] = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN};
-// bool app.operation_mode = true;
 
 // declaração das estruturas de app e aluno
 app_config_t app = {
@@ -224,20 +226,23 @@ app_config_t app = {
             .duty       = 0,
             .hpoint     = 0
         },
-        .duty           = 0,
-        .duty_max       = TOP,
-        .velocidade     = 0,
-        .rampa_acel     = 5000,
-        .rampa_acel_max = 9999,
-        .rampa_acel_min = 1000,
-        .pecas_per_min  = 0,
-        .sentido        = CW,
-        .is_running     = false
+        .duty                   = 0,
+        .duty_acionamento       = 0,
+        .duty_max               = TOP,
+        .velocidade             = 0,
+        .rampa_acel             = 5000,
+        .rampa_acel_max         = 9999,
+        .rampa_acel_min         = 1000,
+        .pecas_per_min          = 0,
+        .sentido                = CW,
+        .is_running             = false
     },
     .magazine = {
-        .magazine_vel           = MAGAZINE_SPEED,
-        .magazine_acel          = MAGAZINE_ACCEL,
-        .magazine_steps_per_rev = MAGAZINE_STEPS_PER_REV,
+        .velocidade     = MAGAZINE_SPEED,
+        .velocidade_max = 240,
+        .aceleracao     = MAGAZINE_ACCEL,
+        .aceleracao_max = 600,
+        .steps_per_rev  = MAGAZINE_STEPS_PER_REV,
         .position               = 0
     },
     .tcs = {
@@ -256,7 +261,7 @@ app_config_t app = {
         .button_pins       = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN}
     },
     .operation_mode   = true,
-    .status           = OK,
+    .status           = STATE_OK,
     .status_printable = {
         "OK     ",
         "RUNNING",
@@ -273,7 +278,6 @@ app_config_t app = {
     },
     .qtd_pecas        = {0, 0, 0}
 };
-
 aluno_config_t aluno = {
     .esteira = {
         .timer = {
@@ -301,9 +305,11 @@ aluno_config_t aluno = {
         .is_running     = false
     },
     .magazine = {
-        .magazine_vel           = MAGAZINE_SPEED,
-        .magazine_acel          = MAGAZINE_ACCEL,
-        .magazine_steps_per_rev = MAGAZINE_STEPS_PER_REV,
+        .velocidade     = MAGAZINE_SPEED,
+        .velocidade_max = 240,
+        .aceleracao     = MAGAZINE_ACCEL,
+        .aceleracao_max = 600,
+        .steps_per_rev  = MAGAZINE_STEPS_PER_REV,
         .position               = 0
     },
     .tcs = {
@@ -372,7 +378,6 @@ uint8_t pow_2[8] = {
 
 
 /******************** INTERRUPTS ********************/
-    // GPIO ISR HANDLER (IHM BUTTONS, SENSORS)
 
 static void IRAM_ATTR gpio_isr_handler(void *arg){
     if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE) {
@@ -382,15 +387,7 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
     }
 }
 
-
 /******************** FUNCTIONS ********************/
-    // CONVEYOR MOTOR CONTROL FUNCS
-    // MAGAZINE MOTOR CONTROL FUNCS
-    // COLOR SENSOR READ FUNC
-    // DISPLAY FUNCS
-    // UART READ FUNCS
-    // UART WRITE FUNCS
-    // INIT SETUP FUNC
 
 void keyLeft(){
     if(app.ihm.linha_selecionada)
@@ -423,34 +420,34 @@ void keyUp(){
         app.ihm.linha_atual > app.ihm.linha_min ? app.ihm.linha_atual-- : app.ihm.linha_atual = app.ihm.linha_max;
 
     if(app.ihm.tela_atual == MENU_ESTEIRA)
-        printf("ACIONAMENTO: Aumentar velocidade da esteira\n");
+        app.esteira.duty_acionamento < app.esteira.duty_max-100 ? app.esteira.duty_acionamento+=100 : app.esteira.duty_acionamento = app.esteira.duty_max;
 
     else if(app.ihm.tela_atual == MENU_MAGAZINE)
-        printf("ACIONAMENTO: Aumentar velocidade do magazine\n");
+        app.magazine.velocidade_acionamento < app.magazine.velocidade_max-6 ? app.magazine.velocidade_acionamento+=6 : app.magazine.velocidade_acionamento = app.magazine.velocidade_max;
 
     else if(app.ihm.tela_atual == MENU_CAL_ESTEIRA && app.ihm.linha_selecionada) {
         if(app.ihm.linha_atual == 1)
-            printf("CONFIG: Aumentar velocidade da esteira\n");
+            app.esteira.duty < app.esteira.duty_max-100 ? app.esteira.duty+=100 : app.esteira.duty = app.esteira.duty_max;
 
         else if(app.ihm.linha_atual == 2)
-            printf("CONFIG: Aumentar rampa da esteira\n");
+            app.esteira.rampa_acel < app.esteira.rampa_acel_max-100 ? app.esteira.rampa_acel+=100 : app.esteira.rampa_acel = app.esteira.rampa_acel_max;
 
         else if(app.ihm.linha_atual == 3)
-            printf("CONFIG: Inverter sentido da esteira\n");
+            app.esteira.sentido = !app.esteira.sentido;
     }
     else if(app.ihm.tela_atual == MENU_CAL_MAGAZINE && app.ihm.linha_selecionada) {
         if(app.ihm.linha_atual == 1)
-            printf("CONFIG: Aumentar velocidade do magazine\n");
+            app.magazine.velocidade < app.magazine.velocidade_max-6 ? app.magazine.velocidade+=6 : app.magazine.velocidade = app.magazine.velocidade_max;
 
         else if(app.ihm.linha_atual == 2)
-            printf("CONFIG: Aumentar aceleração do magazine\n");
+            app.magazine.aceleracao < app.magazine.aceleracao_max-6 ? app.magazine.aceleracao+=6 : app.magazine.aceleracao = app.magazine.aceleracao_max;
 
         else if(app.ihm.linha_atual == 3)
-            printf("CONFIG: Aumentar passos por revolução do magazine\n");
+            app.magazine.steps_per_rev < 60 ? app.magazine.steps_per_rev++ : app.magazine.steps_per_rev = 60;
     }
     else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_selecionada) {
         if(app.ihm.linha_atual == 3)
-            printf("CONFIG: Aumentar tempo de amostragem\n");
+            app.tcs.read_time < 900 ? app.tcs.read_time+=100 : app.tcs.read_time = 1000;
     }
 }
 void keyDown(){
@@ -458,34 +455,34 @@ void keyDown(){
         app.ihm.linha_atual < app.ihm.linha_max ? app.ihm.linha_atual++ : app.ihm.linha_atual = app.ihm.linha_min;
 
     if(app.ihm.tela_atual == MENU_ESTEIRA)
-        printf("Diminuir velocidade da esteira\n");
+        app.esteira.duty_acionamento > 100 ? app.esteira.duty_acionamento-=100 : app.esteira.duty_acionamento = 0;
 
     else if(app.ihm.tela_atual == MENU_MAGAZINE)
-        printf("Diminuir velocidade do magazine\n");
+        app.magazine.velocidade_acionamento > 6 ? app.magazine.velocidade_acionamento-=6 : app.magazine.velocidade_acionamento = 0;
 
     else if(app.ihm.tela_atual == MENU_CAL_ESTEIRA && app.ihm.linha_selecionada) {
         if(app.ihm.linha_atual == 1)
-            printf("CONFIG: Diminuir velocidade da esteira\n");
+            app.esteira.duty > 100 ? app.esteira.duty-=100 : app.esteira.duty = 0;
 
         else if(app.ihm.linha_atual == 2)
-            printf("CONFIG: Diminuir rampa da esteira\n");
+            app.esteira.rampa_acel > 100 ? app.esteira.rampa_acel-=100 : app.esteira.rampa_acel = 0;
 
         else if(app.ihm.linha_atual == 3)
-            printf("CONFIG: Inverter sentido da esteira\n");
+            app.esteira.sentido = !app.esteira.sentido;
     }
     else if(app.ihm.tela_atual == MENU_CAL_MAGAZINE && app.ihm.linha_selecionada) {
         if(app.ihm.linha_atual == 1)
-            printf("CONFIG: Diminuir velocidade do magazine\n");
+            app.magazine.velocidade > 6 ? app.magazine.velocidade-=6 : app.magazine.velocidade = 0;
 
         else if(app.ihm.linha_atual == 2)
-            printf("CONFIG: Diminuir aceleração do magazine\n");
+            app.magazine.aceleracao > 6 ? app.magazine.aceleracao-=6 : app.magazine.aceleracao = 0;
 
         else if(app.ihm.linha_atual == 3)
-            printf("CONFIG: Diminuir passos por revolução do magazine\n");
+            app.magazine.steps_per_rev > 20 ? app.magazine.steps_per_rev-- : app.magazine.steps_per_rev = 20;
     }
     else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_selecionada) {
         if(app.ihm.linha_atual == 3)
-            printf("CONFIG: Diminuir tempo de amostragem\n");
+            app.tcs.read_time > 200 ? app.tcs.read_time-=100 : app.tcs.read_time = 100;
     }
 }
 void keyEnter(){
@@ -503,7 +500,7 @@ void keyEnter(){
         app.ihm.tela_atual = app.ihm.tela_atual / 10;
 
     else if(app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual == 3)
-        printf("Restaurar configurações de fábrica\n");
+        esp_restart();
 
     else if(app.ihm.tela_atual == MENU_CAL_ESTEIRA && app.ihm.linha_atual != 0)
         app.ihm.linha_selecionada = true;
@@ -511,8 +508,17 @@ void keyEnter(){
     else if(app.ihm.tela_atual == MENU_CAL_MAGAZINE && app.ihm.linha_atual != 0)
         app.ihm.linha_selecionada = true;
 
-    else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_atual == 3)
-        app.ihm.linha_selecionada = true;
+    else if(app.ihm.tela_atual == MENU_CAL_SENSOR){
+        if(app.ihm.linha_atual == 1)
+            tcs.whiteCalibration();
+            
+        else if(app.ihm.linha_atual == 2)
+            tcs.darkCalibration();
+
+        else if(app.ihm.linha_atual == 3)
+            app.ihm.linha_selecionada = true;
+        
+    }
 
 }
 
@@ -521,6 +527,10 @@ void atualizaTela() {
         lcd.clear();
         app.ihm.linha_atual = 0;
         app.ihm.tela_anterior = app.ihm.tela_atual;
+        if(app.ihm.tela_atual == MENU_ESTEIRA || app.ihm.tela_atual == MENU_MAGAZINE){
+            app.esteira.duty_acionamento = app.esteira.duty;
+            app.magazine.velocidade_acionamento = app.magazine.velocidade;
+        }
     }
     switch (app.ihm.tela_atual)
     {
@@ -801,15 +811,19 @@ void configEsteira() {
     lcd.setCursor(0,0);
     lcd.print("   CONFIG ESTEIRA   ");
     lcd.setCursor(0,1);
-    lcd.print("  Vel(m/min): 10    ");
+    lcd.print("  Vel(duty):        ");
+    lcd.setCursor(13,1);
+    lcd.print(app.esteira.duty); // 0 a 4095
     lcd.setCursor(0,2);
-    lcd.print("  Rampa(ms) : 5000  ");
+    lcd.print("  Rampa(ms): ");
+    lcd.print(app.esteira.rampa_acel); // 1000 a 9999
     lcd.setCursor(0,3);
-    lcd.print("  Sentido   : CCW   ");
+    lcd.print("  Sentido  : ");
+    app.esteira.sentido ? lcd.print("CW ") : lcd.print("CCW");
     lcd.setCursor(0,app.ihm.linha_atual);
     lcd.print("~");
     if(app.ihm.linha_selecionada){
-        lcd.setCursor(13, app.ihm.linha_atual);
+        lcd.setCursor(12, app.ihm.linha_atual);
         lcd.print("#");
     }
 }
@@ -822,13 +836,18 @@ void configMagazine() {
     lcd.setCursor(0,0);
     lcd.print("  CONFIG  MAGAZINE  ");
     lcd.setCursor(0,1);
-    lcd.print("  Vel(step/s) :  96 ");
+    lcd.print("  Vel(step/s) :     ");
+    lcd.setCursor(16,1);
+    lcd.print(app.magazine.velocidade);
     lcd.setCursor(0,2);
     lcd.print("  Acc(step/s");
     lcd.write(POW_2);
-    lcd.print("): 240 ");
+    lcd.print("): ");
+    lcd.print(app.magazine.aceleracao);
     lcd.setCursor(0,3);
-    lcd.print("  Steps/rev   :  48 ");
+    lcd.print("  Steps/rev   :     ");
+    lcd.setCursor(16,3);
+    lcd.print(app.magazine.steps_per_rev);
     lcd.setCursor(0,app.ihm.linha_atual);
     lcd.print("~");
     if(app.ihm.linha_selecionada){
@@ -849,7 +868,9 @@ void configSensor() {
     lcd.setCursor(0,2);
     lcd.print("  Calibrar_preto()  ");
     lcd.setCursor(0,3);
-    lcd.print("  Amostragem: 100 ms");
+    lcd.print("  Amostragem:     ms");
+    lcd.setCursor(14,3);
+    lcd.print(app.tcs.read_time);
     lcd.setCursor(0,app.ihm.linha_atual);
     lcd.print("~");
     if(app.ihm.linha_selecionada){
@@ -974,7 +995,7 @@ void trataComandoRecebido(uint8_t * dt){
 
 
 
-/******************************************************************/
+
 void motorByFadeTime(){
     digitalWrite(ESTEIRA_IN1, HIGH);
     digitalWrite(ESTEIRA_IN2, LOW);

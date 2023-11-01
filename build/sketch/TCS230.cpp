@@ -41,16 +41,9 @@ void TCS230::initialize(void) {
     _readState = TCS230_READY;
 
     for (uint8_t i=0; i<RGB_SIZE; i++) {
-        _fd.value[i] = 6000L;  // just typical values
-        _fw.value[i] = 55000L; // just typical values
+        _fd.value[i] = 4000L;  // just typical values
+        _fw.value[i] = 50000L; // just typical values
     }
-
-    _fo.value[RED]   = 60000;
-    _fo.value[GREEN] = 33;
-    _fo.value[BLUE]  = 3300;
-    _rgb.value[RED]  = 100;
-    _rgb.value[GREEN]= 9;
-    _rgb.value[BLUE] = 99;
 }
 
 TCS230::TCS230(gpio_num_t out, uint8_t s2, uint8_t s3) {
@@ -153,7 +146,7 @@ void TCS230::setFrequency(uint8_t f) {
     setFrequencyInternal(f);
 }
 
-void TCS230::setSampling(uint8_t t) {
+void TCS230::setSampling(uint16_t t) {
     if (_readTime > 0 && _readTime <= 1000)
         _readTime = t;
 }
@@ -185,6 +178,12 @@ void TCS230::setDarkCal(sensorData *d) {
     }
 }
 
+void TCS230::darkCalibration(void) {
+    DUMPS("\ndarkCalibration");
+    read();
+    setDarkCal(&_fo);
+}
+
 void TCS230::setWhiteCal(sensorData *d) {
     if (d == NULL)
         return;
@@ -194,6 +193,12 @@ void TCS230::setWhiteCal(sensorData *d) {
         DUMP(" ", d->value[i]);
         _fw.value[i] = d->value[i];
     }
+}
+
+void TCS230::whiteCalibration(void) {
+    DUMPS("\nwhiteCalibration");
+    read();
+    setWhiteCal(&_fo);
 }
 
 // get the rgb value of the current reading

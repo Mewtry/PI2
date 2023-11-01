@@ -89,7 +89,9 @@ class TCS230 {
     void setEnable(bool b);             // set the output enable
     void setSampling(uint16_t t);       // set the sampling time
     void setDarkCal(sensorData *d);     // set the dark calibration data
+    void darkCalibration(void);         // perform the dark calibration
     void setWhiteCal(sensorData *d);    // set the white calibration data
+    void whiteCalibration(void);        // perform the white calibration
     void setDarkSensitive(uint8_t d);   // set the dark sensitive value
     void setWhiteSensitive(uint16_t d); // set the white sensitive value
 
