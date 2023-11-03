@@ -1,4 +1,4 @@
-# 1 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 /**************************************************************************/
 /**
 
@@ -11,27 +11,27 @@
  * @see     www.linkedin.com/in/theo-pires-a34b33183/
 
 */
-# 8 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 8 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 /**************************************************************************/
 
-# 11 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
-# 12 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
-# 13 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
-# 14 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
-# 15 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
-# 16 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
-# 17 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
+# 11 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 12 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 13 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 14 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 15 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 16 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 17 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
 
-# 19 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
-# 20 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
+# 19 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 20 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
 
-# 22 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
-# 23 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 2
+# 22 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 23 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
 
 /********************* DEFINES *********************/
 
 // MOTOR CC DA ESTEIRA
-# 35 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 35 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 // MOTOR DE PASSO DO MAGAZINE
 
 
@@ -40,7 +40,7 @@
 
 
 // SENSOR DE COR
-# 51 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 51 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 // DISPLAY LCD I2C
 
 
@@ -201,9 +201,9 @@ static const char * versao = "1.0.0";
 
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = 
-# 210 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 210 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                        __null
-# 210 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 210 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                            ;
 
 // declaração das estruturas de app e aluno
@@ -381,9 +381,9 @@ static void __attribute__((section(".iram1" "." "28"))) gpio_isr_handler(void *a
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueGenericSendFromISR( ( gpio_event_queue ), ( &gpio_num ), ( 
-# 386 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 386 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
        __null 
-# 386 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 386 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
        ), ( ( BaseType_t ) 0 ) );
     }
 }
@@ -447,8 +447,10 @@ void keyUp(){
             app.magazine.steps_per_rev < 60 ? app.magazine.steps_per_rev++ : app.magazine.steps_per_rev = 60;
     }
     else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_selecionada) {
-        if(app.ihm.linha_atual == 3)
+        if(app.ihm.linha_atual == 3) {
             app.tcs.read_time < 900 ? app.tcs.read_time+=100 : app.tcs.read_time = 1000;
+            tcs.setSampling(app.tcs.read_time);
+        }
     }
 }
 void keyDown(){
@@ -482,8 +484,10 @@ void keyDown(){
             app.magazine.steps_per_rev > 20 ? app.magazine.steps_per_rev-- : app.magazine.steps_per_rev = 20;
     }
     else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_selecionada) {
-        if(app.ihm.linha_atual == 3)
+        if(app.ihm.linha_atual == 3) {
             app.tcs.read_time > 200 ? app.tcs.read_time-=100 : app.tcs.read_time = 100;
+            tcs.setSampling(app.tcs.read_time);
+        }
     }
 }
 void keyEnter(){
@@ -633,7 +637,7 @@ void monitoramento() {
     lcd.print("B~");
     lcd.print(app.qtd_pecas[BLUE]);
     lcd.print("|PECAS/MIN: 2");
-    switch (app.magazine.position)
+    switch (tcs.getColor())
     {
     case RED:
         lcd.setCursor(0,1);
@@ -761,12 +765,12 @@ void detecSensor() {
     lcd.setCursor(0,0);
     lcd.print("   LEITURA TCS230   ");
     lcd.setCursor(0,1);
-    lcd.print("Raw:R");
-    lcd.print("     ");
+    lcd.print("Raw:R      ");
     lcd.setCursor(5,1);
     lcd.print(app.tcs.raw.value[RED]);
     lcd.setCursor(11,1);
-    lcd.print("RGB={");
+    lcd.print("RGB={   ");
+    lcd.setCursor(16,1);
     if(app.tcs.rgb.value[RED] <= 9)
         lcd.setCursor(18,1);
     else if(app.tcs.rgb.value[RED] <= 99)
@@ -775,8 +779,7 @@ void detecSensor() {
     lcd.setCursor(19,1);
     lcd.print(",");
     lcd.setCursor(0,2);
-    lcd.print("    G");
-    lcd.print("     ");
+    lcd.print("    G              ");
     lcd.setCursor(5,2);
     lcd.print(app.tcs.raw.value[GREEN]);
     if(app.tcs.rgb.value[GREEN] <= 9)
@@ -789,8 +792,7 @@ void detecSensor() {
     lcd.setCursor(19,2);
     lcd.print(",");
     lcd.setCursor(0,3);
-    lcd.print("    B");
-    lcd.print("     ");
+    lcd.print("    B              ");
     lcd.setCursor(5,3);
     lcd.print(app.tcs.raw.value[BLUE]);
     if(app.tcs.rgb.value[BLUE] <= 9)
@@ -813,7 +815,7 @@ void configEsteira() {
     lcd.print("   CONFIG ESTEIRA   ");
     lcd.setCursor(0,1);
     lcd.print("  Vel(duty):        ");
-    lcd.setCursor(12,1);
+    lcd.setCursor(13,1);
     lcd.print(app.esteira.duty); // 0 a 4095
     lcd.setCursor(0,2);
     lcd.print("  Rampa(ms): ");
@@ -906,13 +908,13 @@ void uartBegin(){
 
     // Cria a task no nucleo 0 com prioridade 1
     xTaskCreate(uart_event_task, "uart_event_task", 4096, 
-# 907 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 909 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                          __null
-# 907 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 909 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                              , 2, 
-# 907 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 909 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                   __null
-# 907 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 909 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                       );
 
 } // end uart_init
@@ -1075,9 +1077,9 @@ static void uart_event_task(void *pvParameters){
             {
             case UART_DATA:
                 len = uart_read_bytes((0) /*!< UART port 0 */, data, (1024), 200 / ( ( TickType_t ) 1000 / ( 
-# 1068 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1070 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                        1000 
-# 1068 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1070 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                        ) ));
                 if(len > 0){
                     data[len] = '\0'; // Trunca o buffer para trabalhar como uma string                   
@@ -1107,15 +1109,15 @@ static void uart_event_task(void *pvParameters){
     // Desacola a memória dinâmica criada na task
     free(data);
     data = 
-# 1096 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1098 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
           __null
-# 1096 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1098 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
               ;
     // Deleta a task após a sua conclusão
     vTaskDelete(
-# 1098 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1100 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1098 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1100 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                    );
 } // end uart_event_task
 
@@ -1123,9 +1125,9 @@ static void principal_task(void *pvParameters){
 
     while(true){
         if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, ( ( TickType_t ) ( ( ( TickType_t ) ( 1000 ) * ( TickType_t ) ( 
-# 1104 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1106 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                 1000 
-# 1104 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1106 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                 ) ) / ( TickType_t ) 1000U ) ))){
             switch (app.ihm.key_pressed)
             {
@@ -1148,6 +1150,7 @@ static void principal_task(void *pvParameters){
                 break;
             }
         }
+        tcs.read();
         atualizaTela();
     }
 }
@@ -1174,13 +1177,13 @@ void setup(void){
     atualizaTela();
 
     xTaskCreate(principal_task, "principal_task", 4096, 
-# 1151 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1154 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                        __null
-# 1151 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1154 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                            , 3, 
-# 1151 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1154 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                 __null
-# 1151 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1154 "D:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                     ); // Cria a task com prioridade 3
 
     // ledc_timer_config(&timer);

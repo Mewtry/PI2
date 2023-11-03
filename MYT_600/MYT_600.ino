@@ -446,8 +446,10 @@ void keyUp(){
             app.magazine.steps_per_rev < 60 ? app.magazine.steps_per_rev++ : app.magazine.steps_per_rev = 60;
     }
     else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_selecionada) {
-        if(app.ihm.linha_atual == 3)
+        if(app.ihm.linha_atual == 3) {
             app.tcs.read_time < 900 ? app.tcs.read_time+=100 : app.tcs.read_time = 1000;
+            tcs.setSampling(app.tcs.read_time);
+        }
     }
 }
 void keyDown(){
@@ -481,8 +483,10 @@ void keyDown(){
             app.magazine.steps_per_rev > 20 ? app.magazine.steps_per_rev-- : app.magazine.steps_per_rev = 20;
     }
     else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_selecionada) {
-        if(app.ihm.linha_atual == 3)
+        if(app.ihm.linha_atual == 3) {
             app.tcs.read_time > 200 ? app.tcs.read_time-=100 : app.tcs.read_time = 100;
+            tcs.setSampling(app.tcs.read_time);
+        }
     }
 }
 void keyEnter(){
@@ -632,7 +636,7 @@ void monitoramento() {
     lcd.print("B~");
     lcd.print(app.qtd_pecas[BLUE]);
     lcd.print("|PECAS/MIN: 2");
-    switch (app.magazine.position)
+    switch (tcs.getColor())
     {
     case RED:
         lcd.setCursor(0,1);
@@ -760,12 +764,12 @@ void detecSensor() {
     lcd.setCursor(0,0);
     lcd.print("   LEITURA TCS230   ");
     lcd.setCursor(0,1);
-    lcd.print("Raw:R");
-    lcd.print("     ");
+    lcd.print("Raw:R      ");
     lcd.setCursor(5,1);
     lcd.print(app.tcs.raw.value[RED]);
     lcd.setCursor(11,1);
-    lcd.print("RGB={");
+    lcd.print("RGB={   ");
+    lcd.setCursor(16,1);
     if(app.tcs.rgb.value[RED] <= 9)
         lcd.setCursor(18,1);
     else if(app.tcs.rgb.value[RED] <= 99)
@@ -774,8 +778,7 @@ void detecSensor() {
     lcd.setCursor(19,1);
     lcd.print(",");
     lcd.setCursor(0,2);
-    lcd.print("    G");
-    lcd.print("     ");
+    lcd.print("    G              ");
     lcd.setCursor(5,2);
     lcd.print(app.tcs.raw.value[GREEN]);
     if(app.tcs.rgb.value[GREEN] <= 9)
@@ -788,8 +791,7 @@ void detecSensor() {
     lcd.setCursor(19,2);
     lcd.print(",");
     lcd.setCursor(0,3);
-    lcd.print("    B");
-    lcd.print("     ");
+    lcd.print("    B              ");
     lcd.setCursor(5,3);
     lcd.print(app.tcs.raw.value[BLUE]);
     if(app.tcs.rgb.value[BLUE] <= 9)
@@ -1123,6 +1125,7 @@ static void principal_task(void *pvParameters){
                 break;
             }
         }
+        tcs.read();
         atualizaTela();
     }
 }
