@@ -33,8 +33,9 @@
 #define TOP 4095
 
 // MOTOR DE PASSO DO MAGAZINE
-#define MAGAZINE_PUL_PIN GPIO_NUM_16
-#define MAGAZINE_DIR_PIN GPIO_NUM_17
+#define MAGAZINE_PUL_PIN  GPIO_NUM_16
+#define MAGAZINE_DIR_PIN  GPIO_NUM_17
+#define MAGAZINE_ZERO_PIN GPIO_NUM_23
 #define MAGAZINE_STEPS_PER_REV 384
 #define MAGAZINE_SPEED  768
 #define MAGAZINE_ACCEL 1920
@@ -211,14 +212,14 @@ app_config_t app = {
         .timer = {
             .speed_mode      = LEDC_LOW_SPEED_MODE,
             .duty_resolution = ESTEIRA_RESOLUTION,
-            .timer_num       = LEDC_TIMER_0,
+            .timer_num       = LEDC_TIMER_1,
             .freq_hz         = ESTEIRA_FREQ,
             .clk_cfg         = LEDC_AUTO_CLK
         },
         .channel = {
             .gpio_num   = ESTEIRA_ENA,
             .speed_mode = LEDC_LOW_SPEED_MODE,
-            .channel    = LEDC_CHANNEL_0,
+            .channel    = LEDC_CHANNEL_1,
             .duty       = 0,
             .hpoint     = 0
         },
@@ -230,7 +231,7 @@ app_config_t app = {
         .rampa_acel_max         = 9999,
         .rampa_acel_min         = 1000,
         .pecas_per_min          = 0,
-        .sentido                = CW,
+        .sentido                = CCW,
         .is_running             = false
     },
     .magazine = {
@@ -244,7 +245,7 @@ app_config_t app = {
     .tcs = {
         .fd         = {4162, 3764, 5166},
         .fw         = {50551, 46568, 60065},
-        .read_time  = 300,
+        .read_time  = 100,
         .last_color = BLACK
     },
     .ihm = {
@@ -423,8 +424,15 @@ void pararEsteira(){
     digitalWrite(ESTEIRA_IN1, LOW);
     digitalWrite(ESTEIRA_IN2, LOW);
 
+    ledc_set_duty_and_update(
+        app.esteira.channel.speed_mode, 
+        app.esteira.channel.channel, 
+        0, 
+        0
+    );  
+    
     app.esteira.is_running = false;
-    app.status = STATE_OK;
+    if(app.status < 3) app.status = STATE_OK;
 
 }
 
@@ -433,7 +441,6 @@ void moverMagazine(bool sentido = CW, bool acionamentoManual = false){
     magazine.setMaxSpeed(app.magazine.velocidade);
     magazine.setAcceleration(app.magazine.aceleracao);
     // app.status = MANUAL;
-    while(magazine.isRunning()){};
     magazine.move((int)(sentido == CW ? app.magazine.steps_per_rev : -app.magazine.steps_per_rev)/3);
     magazine.runToPosition();
     app.magazine.position += (sentido == CW ? 1 : -1);
@@ -443,10 +450,12 @@ void moverMagazinePara(uint8_t posicao){
     int8_t n;
     if(posicao == app.magazine.position) return;
     n = app.magazine.position - posicao;
-    if(n > 0) n -= 3;
+    if(n > 0) n -= 3; // CCW
+    // if(posicao == app.magazine.position) return;
+    // n = posicao - app.magazine.position;
+    // if(n < 0) n += 3; // CW
     magazine.setMaxSpeed(app.magazine.velocidade);
     magazine.setAcceleration(app.magazine.aceleracao);
-    while(magazine.isRunning()){};
     magazine.move(n * (app.magazine.steps_per_rev/3));
     magazine.runToPosition();
     app.magazine.position = posicao;
@@ -455,9 +464,18 @@ void atualizaMagazine(bool acionmanetoManual = false){
     magazine.setMaxSpeed(acionmanetoManual ? app.magazine.velocidade_acionamento : app.magazine.velocidade);
     magazine.setAcceleration(app.magazine.aceleracao);
 }
-void pararMagazine(){
-    magazine.stop();
-    app.status = STATE_OK;
+bool zerarMagazine(){
+    magazine.setMaxSpeed(app.magazine.velocidade/3);
+    magazine.setAcceleration(app.magazine.aceleracao);
+    magazine.move(-2*app.magazine.steps_per_rev);
+    while(magazine.run()){
+        if(digitalRead(MAGAZINE_ZERO_PIN) == HIGH){
+            magazine.stop();
+            app.magazine.position = 0;
+            return 0;
+        }
+    }
+    return 1;
 }
 
 /*==============Botões=============*/
@@ -733,7 +751,8 @@ void monitoramento() {
     lcd.setCursor(0,3);
     lcd.print("B~");
     lcd.print(app.qtd_pecas[BLUE]);
-    lcd.print("|PECAS/MIN: 2");
+    lcd.print("|PECAS/MIN: ");
+    lcd.print(digitalRead(MAGAZINE_ZERO_PIN));
     switch (app.magazine.position)
     {
     case RED:
@@ -1075,11 +1094,6 @@ void trataComandoRecebido(uint8_t * dt){
                 responseOK();
                 return;
             }
-            else if( ! strcmp(jsonType, "menu")){
-                app.ihm.tela_atual = json_IN["menu"];
-                responseOK();
-                return;
-            }
             else if( ! strcmp(jsonType, "emulate")){
                 uint32_t key = json_IN["key"];
                 xQueueSend(gpio_event_queue, &key, 0);
@@ -1224,6 +1238,8 @@ static void principal_task(void *pvParameters){
         }
         atualizaTela();
     }
+    // Deleta a task após a sua conclusão
+    vTaskDelete(NULL);
 }
 
 /********************** SETUP **********************/
@@ -1253,13 +1269,18 @@ void setup(void){
 
     pinMode(ESTEIRA_IN1, OUTPUT);
     pinMode(ESTEIRA_IN2, OUTPUT);
+    pinMode(MAGAZINE_ZERO_PIN, INPUT_PULLUP);
 
     magazine.setMaxSpeed(app.magazine.velocidade);
     magazine.setAcceleration(app.magazine.aceleracao);
+
+    bool error = zerarMagazine();
+    if(error) app.status = ERROR_1;
+    else app.status = STATE_OK;
 
     xTaskCreate(principal_task, "principal_task", 4096, NULL, 3, NULL); // Cria a task com prioridade 3
 }
 /********************** LOOP **********************/
 void loop(void){
-
+    vTaskDelay(portMAX_DELAY);
 }

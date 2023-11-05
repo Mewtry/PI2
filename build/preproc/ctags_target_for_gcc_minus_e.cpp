@@ -39,8 +39,9 @@
 
 
 
+
 // SENSOR DE COR
-# 51 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 52 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
 // DISPLAY LCD I2C
 
 
@@ -197,9 +198,9 @@ static const char * versao = "1.0.0";
 
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = 
-# 206 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 207 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
                                        __null
-# 206 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 207 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
                                            ;
 
 // declaração das estruturas de app e aluno
@@ -208,14 +209,14 @@ app_config_t app = {
         .timer = {
             .speed_mode = LEDC_LOW_SPEED_MODE,
             .duty_resolution = LEDC_TIMER_12_BIT,
-            .timer_num = LEDC_TIMER_0,
+            .timer_num = LEDC_TIMER_1,
             .freq_hz = 1000,
             .clk_cfg = LEDC_AUTO_CLK
         },
         .channel = {
             .gpio_num = GPIO_NUM_5,
             .speed_mode = LEDC_LOW_SPEED_MODE,
-            .channel = LEDC_CHANNEL_0,
+            .channel = LEDC_CHANNEL_1,
             .duty = 0,
             .hpoint = 0
         },
@@ -227,7 +228,7 @@ app_config_t app = {
         .rampa_acel_max = 9999,
         .rampa_acel_min = 1000,
         .pecas_per_min = 0,
-        .sentido = CW,
+        .sentido = CCW,
         .is_running = false
     },
     .magazine = {
@@ -241,7 +242,7 @@ app_config_t app = {
     .tcs = {
         .fd = {4162, 3764, 5166},
         .fw = {50551, 46568, 60065},
-        .read_time = 300,
+        .read_time = 100,
         .last_color = BLACK
     },
     .ihm = {
@@ -378,9 +379,9 @@ static void __attribute__((section(".iram1" "." "28"))) gpio_isr_handler(void *a
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueGenericSendFromISR( ( gpio_event_queue ), ( &gpio_num ), ( 
-# 383 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 384 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
        __null 
-# 383 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 384 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
        ), ( ( BaseType_t ) 0 ) );
     }
 }
@@ -424,8 +425,15 @@ void pararEsteira(){
     digitalWrite(GPIO_NUM_18, 0x0);
     digitalWrite(GPIO_NUM_19, 0x0);
 
+    ledc_set_duty_and_update(
+        app.esteira.channel.speed_mode,
+        app.esteira.channel.channel,
+        0,
+        0
+    );
+
     app.esteira.is_running = false;
-    app.status = STATE_OK;
+    if(app.status < 3) app.status = STATE_OK;
 
 }
 
@@ -434,7 +442,6 @@ void moverMagazine(bool sentido = CW, bool acionamentoManual = false){
     magazine.setMaxSpeed(app.magazine.velocidade);
     magazine.setAcceleration(app.magazine.aceleracao);
     // app.status = MANUAL;
-    while(magazine.isRunning()){};
     magazine.move((int)(sentido == CW ? app.magazine.steps_per_rev : -app.magazine.steps_per_rev)/3);
     magazine.runToPosition();
     app.magazine.position += (sentido == CW ? 1 : -1);
@@ -444,10 +451,12 @@ void moverMagazinePara(uint8_t posicao){
     int8_t n;
     if(posicao == app.magazine.position) return;
     n = app.magazine.position - posicao;
-    if(n > 0) n -= 3;
+    if(n > 0) n -= 3; // CCW
+    // if(posicao == app.magazine.position) return;
+    // n = posicao - app.magazine.position;
+    // if(n < 0) n += 3; // CW
     magazine.setMaxSpeed(app.magazine.velocidade);
     magazine.setAcceleration(app.magazine.aceleracao);
-    while(magazine.isRunning()){};
     magazine.move(n * (app.magazine.steps_per_rev/3));
     magazine.runToPosition();
     app.magazine.position = posicao;
@@ -456,9 +465,18 @@ void atualizaMagazine(bool acionmanetoManual = false){
     magazine.setMaxSpeed(acionmanetoManual ? app.magazine.velocidade_acionamento : app.magazine.velocidade);
     magazine.setAcceleration(app.magazine.aceleracao);
 }
-void pararMagazine(){
-    magazine.stop();
-    app.status = STATE_OK;
+bool zerarMagazine(){
+    magazine.setMaxSpeed(app.magazine.velocidade/3);
+    magazine.setAcceleration(app.magazine.aceleracao);
+    magazine.move(-2*app.magazine.steps_per_rev);
+    while(magazine.run()){
+        if(digitalRead(GPIO_NUM_23) == 0x1){
+            magazine.stop();
+            app.magazine.position = 0;
+            return 0;
+        }
+    }
+    return 1;
 }
 
 /*==============Botões=============*/
@@ -734,7 +752,8 @@ void monitoramento() {
     lcd.setCursor(0,3);
     lcd.print("B~");
     lcd.print(app.qtd_pecas[BLUE]);
-    lcd.print("|PECAS/MIN: 2");
+    lcd.print("|PECAS/MIN: ");
+    lcd.print(digitalRead(GPIO_NUM_23));
     switch (app.magazine.position)
     {
     case RED:
@@ -1006,13 +1025,13 @@ void uartBegin(){
 
     // Cria a task no nucleo 0 com prioridade 1
     xTaskCreate(uart_event_task, "uart_event_task", 4096, 
-# 1007 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1026 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
                                                          __null
-# 1007 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1026 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
                                                              , 2, 
-# 1007 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1026 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
                                                                   __null
-# 1007 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1026 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
                                                                       );
 
 } // end uart_init
@@ -1084,11 +1103,6 @@ void trataComandoRecebido(uint8_t * dt){
                 responseOK();
                 return;
             }
-            else if( ! strcmp(jsonType, "menu")){
-                app.ihm.tela_atual = json_IN["menu"];
-                responseOK();
-                return;
-            }
             else if( ! strcmp(jsonType, "emulate")){
                 uint32_t key = json_IN["key"];
                 xQueueGenericSend( ( gpio_event_queue ), ( &key ), ( 0 ), ( ( BaseType_t ) 0 ) );
@@ -1145,9 +1159,9 @@ static void uart_event_task(void *pvParameters){
             {
             case UART_DATA:
                 len = uart_read_bytes((0) /*!< UART port 0 */, data, (1024), 200 / ( ( TickType_t ) 1000 / ( 
-# 1138 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1152 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
                                                                        1000 
-# 1138 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1152 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
                                                                        ) ));
                 if(len > 0){
                     data[len] = '\0'; // Trunca o buffer para trabalhar como uma string                   
@@ -1177,28 +1191,28 @@ static void uart_event_task(void *pvParameters){
     // Desacola a memória dinâmica criada na task
     free(data);
     data = 
-# 1166 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1180 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
           __null
-# 1166 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1180 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
               ;
     // Deleta a task após a sua conclusão
     vTaskDelete(
-# 1168 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1182 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1168 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1182 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
                    );
 } // end uart_event_task
 
 static void principal_task(void *pvParameters){
     while(true){
         if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, app.status == RUNNING ? ( ( TickType_t ) ( ( ( TickType_t ) ( 500 ) * ( TickType_t ) ( 
-# 1173 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1187 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
                                                                                         1000 
-# 1173 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1187 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
                                                                                         ) ) / ( TickType_t ) 1000U ) ) : ( ( TickType_t ) ( ( ( TickType_t ) ( 1000 ) * ( TickType_t ) ( 
-# 1173 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1187 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
                                                                                                              1000 
-# 1173 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1187 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
                                                                                                              ) ) / ( TickType_t ) 1000U ) ))){
             switch (app.ihm.key_pressed)
             {
@@ -1253,6 +1267,12 @@ static void principal_task(void *pvParameters){
         }
         atualizaTela();
     }
+    // Deleta a task após a sua conclusão
+    vTaskDelete(
+# 1242 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+               __null
+# 1242 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+                   );
 }
 
 /********************** SETUP **********************/
@@ -1282,21 +1302,26 @@ void setup(void){
 
     pinMode(GPIO_NUM_18, 0x03);
     pinMode(GPIO_NUM_19, 0x03);
+    pinMode(GPIO_NUM_23, 0x05);
 
     magazine.setMaxSpeed(app.magazine.velocidade);
     magazine.setAcceleration(app.magazine.aceleracao);
 
+    bool error = zerarMagazine();
+    if(error) app.status = ERROR_1;
+    else app.status = STATE_OK;
+
     xTaskCreate(principal_task, "principal_task", 4096, 
-# 1260 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1281 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
                                                        __null
-# 1260 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1281 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
                                                            , 3, 
-# 1260 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
+# 1281 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino" 3 4
                                                                 __null
-# 1260 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
+# 1281 "C:\\Users\\theo-\\Área de Trabalho\\Arquivos Theo\\Projeto Integrador II\\Firmware\\MYT_600\\MYT_600.ino"
                                                                     ); // Cria a task com prioridade 3
 }
 /********************** LOOP **********************/
 void loop(void){
-
+    vTaskDelay(( TickType_t ) 0xffffffffUL);
 }
