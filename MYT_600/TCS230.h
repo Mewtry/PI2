@@ -57,7 +57,7 @@ class TCS230 {
     
     volatile uint32_t _pulseCounter; // pulse counter of frequency output from sensor
     
-    uint8_t _ds = 120;   // Limite para entender como preto em comparação ao total entre os valores RGB
+    uint8_t _ds = 150;   // Limite para entender como preto em comparação ao total entre os valores RGB
     uint16_t _ws = 650; // Limite para entender como branco em comparação ao total entre os valores RGB
 
     sensorData _fd;         // dark calibration parameters raw data

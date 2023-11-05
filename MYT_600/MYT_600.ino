@@ -35,9 +35,9 @@
 // MOTOR DE PASSO DO MAGAZINE
 #define MAGAZINE_PUL_PIN GPIO_NUM_16
 #define MAGAZINE_DIR_PIN GPIO_NUM_17
-#define MAGAZINE_STEPS_PER_REV 48
-#define MAGAZINE_ACCEL 240
-#define MAGAZINE_SPEED  96
+#define MAGAZINE_STEPS_PER_REV 384
+#define MAGAZINE_SPEED  768
+#define MAGAZINE_ACCEL 1920
 
 // SENSOR DE COR
 #define TCS230_S0_PIN  GPIO_NUM_25 // Output frequency scaling S0
@@ -107,6 +107,7 @@ enum sentido_rotacao {
 enum status {
     STATE_OK,
     RUNNING,
+    MANUAL,
     ERROR_1,
     ERROR_2,
     ERROR_3,
@@ -115,8 +116,7 @@ enum status {
     ERROR_6,
     ERROR_7,
     ERROR_8,
-    ERROR_9,
-    ERROR_10,
+    ERROR_9
 };
 
 typedef struct {
@@ -133,7 +133,6 @@ typedef struct {
     bool                  sentido;
     bool                  is_running;
 } esteira_config_t;
-
 typedef struct {
     uint32_t velocidade;
     uint32_t velocidade_acionamento;
@@ -143,15 +142,14 @@ typedef struct {
     uint32_t steps_per_rev;
     uint8_t  position;
 } magazine_config_t;
-
 typedef struct {
     sensorData fd;
     sensorData fw;
     sensorData raw;
     colorData  rgb;
     uint16_t   read_time;
+    uint8_t    last_color;
 } tcs_config_t;
-
 typedef struct {
     uint8_t    tela_atual;
     uint8_t    tela_anterior;
@@ -162,7 +160,6 @@ typedef struct {
     uint32_t   key_pressed; // mudar para uint8_t ?
     gpio_num_t button_pins[8];
 } ihm_config_t;
-
 typedef struct {
     esteira_config_t  esteira;
     magazine_config_t magazine;
@@ -173,7 +170,6 @@ typedef struct {
     char              status_printable[12][8];
     uint8_t           qtd_pecas[TCS230_RGB_SIZE];
 } app_config_t;
-
 typedef struct {
     esteira_config_t  esteira;
     magazine_config_t magazine;
@@ -226,11 +222,11 @@ app_config_t app = {
             .duty       = 0,
             .hpoint     = 0
         },
-        .duty                   = 0,
-        .duty_acionamento       = 0,
+        .duty                   = 4095,
+        .duty_acionamento       = 4095,
         .duty_max               = TOP,
         .velocidade             = 0,
-        .rampa_acel             = 5000,
+        .rampa_acel             = 2000,
         .rampa_acel_max         = 9999,
         .rampa_acel_min         = 1000,
         .pecas_per_min          = 0,
@@ -239,16 +235,17 @@ app_config_t app = {
     },
     .magazine = {
         .velocidade     = MAGAZINE_SPEED,
-        .velocidade_max = 240,
+        .velocidade_max = 1920,
         .aceleracao     = MAGAZINE_ACCEL,
-        .aceleracao_max = 600,
+        .aceleracao_max = 4800,
         .steps_per_rev  = MAGAZINE_STEPS_PER_REV,
-        .position               = 0
+        .position       = 0
     },
     .tcs = {
-        .fd        = {4162, 3764, 5166},
-        .fw        = {50551, 46568, 60065},
-        .read_time = 100
+        .fd         = {4162, 3764, 5166},
+        .fw         = {50551, 46568, 60065},
+        .read_time  = 300,
+        .last_color = BLACK
     },
     .ihm = {
         .tela_atual        = INICIALIZACAO,
@@ -265,6 +262,7 @@ app_config_t app = {
     .status_printable = {
         "OK     ",
         "RUNNING",
+        "MANUAL" ,
         "ERROR 1",
         "ERROR 2",
         "ERROR 3",
@@ -273,8 +271,7 @@ app_config_t app = {
         "ERROR 6",
         "ERROR 7",
         "ERROR 8",
-        "ERROR 9",
-        "ERROR10"
+        "ERROR 9"
     },
     .qtd_pecas        = {0, 0, 0}
 };
@@ -389,6 +386,81 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
 
 /******************** FUNCTIONS ********************/
 
+/*=============Esteira==============*/
+void moverEsteira(bool acionamentoManual = false){
+
+    digitalWrite(ESTEIRA_IN1, app.esteira.sentido);
+    digitalWrite(ESTEIRA_IN2, !app.esteira.sentido);
+    
+    ledc_set_fade_time_and_start(
+        app.esteira.channel.speed_mode, 
+        app.esteira.channel.channel,
+        acionamentoManual == true ? app.esteira.duty_acionamento : app.esteira.duty, 
+        app.esteira.rampa_acel, 
+        LEDC_FADE_NO_WAIT
+    );
+
+    app.esteira.is_running = true;
+    if(app.status != RUNNING) 
+        app.status = MANUAL;
+
+}
+void atualizaEsteira(bool acionamentoManual = false){
+
+    digitalWrite(ESTEIRA_IN1, app.esteira.sentido);
+    digitalWrite(ESTEIRA_IN2, !app.esteira.sentido);
+
+    ledc_set_duty_and_update(
+        app.esteira.channel.speed_mode, 
+        app.esteira.channel.channel, 
+        acionamentoManual == true ? app.esteira.duty_acionamento : app.esteira.duty, 
+        0
+    );
+
+}
+void pararEsteira(){
+    
+    digitalWrite(ESTEIRA_IN1, LOW);
+    digitalWrite(ESTEIRA_IN2, LOW);
+
+    app.esteira.is_running = false;
+    app.status = STATE_OK;
+
+}
+
+/*=============MAGAZINE=============*/
+void moverMagazine(bool sentido = CW, bool acionamentoManual = false){
+    magazine.setMaxSpeed(app.magazine.velocidade);
+    magazine.setAcceleration(app.magazine.aceleracao);
+    // app.status = MANUAL;
+    while(magazine.isRunning()){};
+    magazine.move((int)(sentido == CW ? app.magazine.steps_per_rev : -app.magazine.steps_per_rev)/3);
+    magazine.runToPosition();
+    app.magazine.position += (sentido == CW ? 1 : -1);
+    // app.status = STATE_OK;
+}
+void moverMagazinePara(uint8_t posicao){
+    int8_t n;
+    if(posicao == app.magazine.position) return;
+    n = app.magazine.position - posicao;
+    if(n > 0) n -= 3;
+    magazine.setMaxSpeed(app.magazine.velocidade);
+    magazine.setAcceleration(app.magazine.aceleracao);
+    while(magazine.isRunning()){};
+    magazine.move(n * (app.magazine.steps_per_rev/3));
+    magazine.runToPosition();
+    app.magazine.position = posicao;
+}
+void atualizaMagazine(bool acionmanetoManual = false){
+    magazine.setMaxSpeed(acionmanetoManual ? app.magazine.velocidade_acionamento : app.magazine.velocidade);
+    magazine.setAcceleration(app.magazine.aceleracao);
+}
+void pararMagazine(){
+    magazine.stop();
+    app.status = STATE_OK;
+}
+
+/*==============Botões=============*/
 void keyLeft(){
     if(app.ihm.linha_selecionada)
         app.ihm.linha_selecionada = false;
@@ -398,32 +470,50 @@ void keyLeft(){
     else if(app.ihm.tela_atual != MENU_ESTEIRA && app.ihm.tela_atual != MENU_MAGAZINE)
         app.ihm.tela_atual = app.ihm.tela_atual / 10;
 
-    else if(app.ihm.tela_atual == MENU_ESTEIRA)
-        printf("Mover esteira sentido Anti-Horario\n");
+    else if(app.ihm.tela_atual == MENU_ESTEIRA){
+        if(app.esteira.is_running && app.esteira.sentido == CW) pararEsteira();
+        else {
+            app.esteira.sentido = CCW;
+            moverEsteira(true);
+        }
+    }
 
-    else if(app.ihm.tela_atual == MENU_MAGAZINE)
-        printf("Mover magazine sentido Anti-Horario\n");
+    else if(app.ihm.tela_atual == MENU_MAGAZINE){
+        app.magazine.position > 0 ? app.magazine.position-- : app.magazine.position = 2;
+        moverMagazine(CCW, true);
+    }
 }
 void keyRight(){
     if(app.ihm.tela_atual < 10)
         app.ihm.tela_atual < 2 ? app.ihm.tela_atual++ : app.ihm.tela_atual = 1;
 
-    else if(app.ihm.tela_atual == MENU_ESTEIRA)
-        printf("Mover esteira sentido Horario\n");
+    else if(app.ihm.tela_atual == MENU_ESTEIRA){
+        if(app.esteira.is_running && app.esteira.sentido == CCW) pararEsteira();
+        else {
+            app.esteira.sentido = CW;
+            moverEsteira(true);
+        }
+    }
     
-    else if(app.ihm.tela_atual == MENU_MAGAZINE)
-        printf("Mover magazine sentido Horario\n");
+    else if(app.ihm.tela_atual == MENU_MAGAZINE){
+        app.magazine.position < 2 ? app.magazine.position++ : app.magazine.position = 0;
+        moverMagazine(CW, true);
+    }
     
 }
 void keyUp(){
     if(app.ihm.linha_max != 0 && app.ihm.linha_selecionada == false)
         app.ihm.linha_atual > app.ihm.linha_min ? app.ihm.linha_atual-- : app.ihm.linha_atual = app.ihm.linha_max;
 
-    if(app.ihm.tela_atual == MENU_ESTEIRA)
+    if(app.ihm.tela_atual == MENU_ESTEIRA){
         app.esteira.duty_acionamento < app.esteira.duty_max-100 ? app.esteira.duty_acionamento+=100 : app.esteira.duty_acionamento = app.esteira.duty_max;
+        atualizaEsteira(true);
+    }
 
-    else if(app.ihm.tela_atual == MENU_MAGAZINE)
+    else if(app.ihm.tela_atual == MENU_MAGAZINE){
         app.magazine.velocidade_acionamento < app.magazine.velocidade_max-6 ? app.magazine.velocidade_acionamento+=6 : app.magazine.velocidade_acionamento = app.magazine.velocidade_max;
+        atualizaMagazine(true);
+    }
 
     else if(app.ihm.tela_atual == MENU_CAL_ESTEIRA && app.ihm.linha_selecionada) {
         if(app.ihm.linha_atual == 1)
@@ -456,8 +546,10 @@ void keyDown(){
     if(app.ihm.linha_max != 0 && app.ihm.linha_selecionada == false)
         app.ihm.linha_atual < app.ihm.linha_max ? app.ihm.linha_atual++ : app.ihm.linha_atual = app.ihm.linha_min;
 
-    if(app.ihm.tela_atual == MENU_ESTEIRA)
+    if(app.ihm.tela_atual == MENU_ESTEIRA){
         app.esteira.duty_acionamento > 100 ? app.esteira.duty_acionamento-=100 : app.esteira.duty_acionamento = 0;
+        atualizaEsteira(true);
+    }
 
     else if(app.ihm.tela_atual == MENU_MAGAZINE)
         app.magazine.velocidade_acionamento > 6 ? app.magazine.velocidade_acionamento-=6 : app.magazine.velocidade_acionamento = 0;
@@ -500,8 +592,10 @@ void keyEnter(){
     else if(app.ihm.tela_atual == MENU_ACIONAMENTOS && app.ihm.linha_atual == 0)
         app.operation_mode = !app.operation_mode;
 
-    else if(app.ihm.tela_atual == MENU_ESTEIRA || app.ihm.tela_atual == MENU_MAGAZINE)
+    else if(app.ihm.tela_atual == MENU_ESTEIRA || app.ihm.tela_atual == MENU_MAGAZINE){
         app.ihm.tela_atual = app.ihm.tela_atual / 10;
+        pararEsteira();
+    }
 
     else if(app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual == 3)
         esp_restart();
@@ -523,9 +617,13 @@ void keyEnter(){
             app.ihm.linha_selecionada = true;
         
     }
+    else if(app.ihm.tela_atual == MONITORAMENTO){
+        app.status == RUNNING ? app.status = STATE_OK : app.status = RUNNING;
+    }
 
 }
 
+/*==============Telas==============*/
 void atualizaTela() {
     if(app.ihm.tela_atual != app.ihm.tela_anterior){
         lcd.clear();
@@ -636,7 +734,7 @@ void monitoramento() {
     lcd.print("B~");
     lcd.print(app.qtd_pecas[BLUE]);
     lcd.print("|PECAS/MIN: 2");
-    switch (tcs.getColor())
+    switch (app.magazine.position)
     {
     case RED:
         lcd.setCursor(0,1);
@@ -881,7 +979,7 @@ void configSensor() {
     }
 }
 
-
+/*==============Begins==============*/
 void uartBegin(){
     // Cria a estrutura com dados de configuração da UART
     uart_config_t uart_config = {
@@ -933,6 +1031,8 @@ void gpioBegin(){
 
 } // end gpioBegin
 
+
+/*===============JSON===============*/
 void responseOK(){
     char * output = (char *) malloc((sizeof(char) * 50));
     StaticJsonDocument<50> json_OUT;
@@ -975,16 +1075,36 @@ void trataComandoRecebido(uint8_t * dt){
                 responseOK();
                 return;
             }
-            if( ! strcmp(jsonType, "menu")){
+            else if( ! strcmp(jsonType, "menu")){
                 app.ihm.tela_atual = json_IN["menu"];
                 responseOK();
                 return;
             }
-            if( ! strcmp(jsonType, "emulate")){
+            else if( ! strcmp(jsonType, "emulate")){
                 uint32_t key = json_IN["key"];
                 xQueueSend(gpio_event_queue, &key, 0);
                 responseOK();
                 return;
+            }
+            else if( ! strcmp(jsonType, "magazine")){
+                uint8_t position = json_IN["position"];
+                switch (position)
+                {
+                case RED:
+                    app.qtd_pecas[RED]++;
+                    moverMagazinePara(RED);
+                    break;
+                case GREEN:
+                    app.qtd_pecas[GREEN]++;
+                    moverMagazinePara(GREEN);
+                    break;
+                case BLUE:
+                    app.qtd_pecas[BLUE]++;
+                    moverMagazinePara(BLUE);
+                    break;               
+                default:
+                    break;
+                }
             }
         }
         else{
@@ -993,58 +1113,6 @@ void trataComandoRecebido(uint8_t * dt){
         }
     }
 
-}
-
-
-
-
-void motorByFadeTime(){
-    digitalWrite(ESTEIRA_IN1, HIGH);
-    digitalWrite(ESTEIRA_IN2, LOW);
-
-    ledc_set_fade_time_and_start(
-        app.esteira.channel.speed_mode, 
-        app.esteira.channel.channel,
-        TOP, 
-        ESTEIRA_FADE_TIME, 
-        LEDC_FADE_WAIT_DONE
-    );
-
-    delay(2000);
-
-    ledc_set_fade_time_and_start(
-        app.esteira.channel.speed_mode, 
-        app.esteira.channel.channel, 
-        0, 
-        ESTEIRA_FADE_TIME, 
-        LEDC_FADE_WAIT_DONE
-    );
-
-    digitalWrite(ESTEIRA_IN1, LOW);
-    digitalWrite(ESTEIRA_IN2, HIGH);
-    
-    ledc_set_fade_time_and_start(
-        app.esteira.channel.speed_mode, 
-        app.esteira.channel.channel,
-        TOP, 
-        ESTEIRA_FADE_TIME, 
-        LEDC_FADE_WAIT_DONE
-    );
-
-    delay(2000);
-
-    ledc_set_fade_time_and_start(
-        app.esteira.channel.speed_mode, 
-        app.esteira.channel.channel, 
-        0, 
-        ESTEIRA_FADE_TIME, 
-        LEDC_FADE_WAIT_DONE
-    );
-
-    digitalWrite(ESTEIRA_IN1, LOW);
-    digitalWrite(ESTEIRA_IN2, LOW);
-
-    delay(1000);
 }
 
 /********************** TASKS ***********************/
@@ -1101,9 +1169,8 @@ static void uart_event_task(void *pvParameters){
 } // end uart_event_task
 
 static void principal_task(void *pvParameters){
-
     while(true){
-        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, pdMS_TO_TICKS(1000))){
+        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, app.status == RUNNING ? pdMS_TO_TICKS(500) : pdMS_TO_TICKS(1000))){
             switch (app.ihm.key_pressed)
             {
             case KEY_LEFT:
@@ -1125,7 +1192,36 @@ static void principal_task(void *pvParameters){
                 break;
             }
         }
-        tcs.read();
+        
+        if(app.status == RUNNING){
+            if( ! app.esteira.is_running) 
+                moverEsteira();
+            tcs.read();
+            if(tcs.getColor() != app.tcs.last_color) {
+                switch (tcs.getColor())
+                {
+                case RED:
+                    app.qtd_pecas[RED]++;
+                    moverMagazinePara(RED);
+                    break;
+                case GREEN:
+                    app.qtd_pecas[GREEN]++;
+                    moverMagazinePara(GREEN);
+                    break;
+                case BLUE:
+                    app.qtd_pecas[BLUE]++;
+                    moverMagazinePara(BLUE);
+                    break;               
+                default:
+                    break;
+                }
+            }
+            app.tcs.last_color = tcs.getColor();
+        }
+        else {
+            if(app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
+            tcs.read();
+        }
         atualizaTela();
     }
 }
@@ -1151,31 +1247,19 @@ void setup(void){
     lcd.backlight();
     atualizaTela();
 
+    ledc_timer_config(&app.esteira.timer);
+    ledc_channel_config(&app.esteira.channel);
+    ledc_fade_func_install(0);
+
+    pinMode(ESTEIRA_IN1, OUTPUT);
+    pinMode(ESTEIRA_IN2, OUTPUT);
+
+    magazine.setMaxSpeed(app.magazine.velocidade);
+    magazine.setAcceleration(app.magazine.aceleracao);
+
     xTaskCreate(principal_task, "principal_task", 4096, NULL, 3, NULL); // Cria a task com prioridade 3
-
-    // ledc_timer_config(&timer);
-    // ledc_channel_config(&app.esteira.channel);
-    // ledc_fade_func_install(0);
-
-    // pinMode(ESTEIRA_IN1, OUTPUT);
-    // pinMode(ESTEIRA_IN2, OUTPUT);
 }
 /********************** LOOP **********************/
 void loop(void){
-    // tcs.read();
-    // tcs.getRaw(&raw);
-    // tcs.getRGB(&rgb);
-    
-    // printf("TCS230: RAW(%d, %d, %d)\n", raw.value[RED], raw.value[GREEN], raw.value[BLUE]);
-    // printf("TCS230: RGB(%d, %d, %d)\n", rgb.value[RED], rgb.value[GREEN], rgb.value[BLUE]);
-
-    // printf("TCS230: Color Read -> %s\n\n", tcs.getColorToString());
-
-    // vTaskDelay(250 / portTICK_PERIOD_MS);
-
-    // motorByFadeStep();
-
-    // tela(app.ihm.tela_atual);
-    // delay(1000);
 
 }
