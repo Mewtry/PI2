@@ -61,6 +61,7 @@
 
 /******************** ESTRUTURAS *******************/
 
+// Enumerações
 enum telas_ihm {
     INICIALIZACAO = 0,
     MENU_PRINCIPAL = 1,
@@ -113,6 +114,7 @@ enum status {
     ERROR_9
 };
 
+// Estruturas
 typedef struct {
     ledc_timer_config_t timer;
     ledc_channel_config_t channel;
@@ -172,7 +174,7 @@ typedef struct {
 
 
 /******************** INSTANCES ********************/
-
+// Instancia do sensor de cor
 TCS230 tcs(
     GPIO_NUM_13 /* Output Sensor*/,
     GPIO_NUM_27 /* Filter selection S2*/,
@@ -182,8 +184,10 @@ TCS230 tcs(
     GPIO_NUM_12 /* Output Enable Pin*/
 );
 
+// Instancia do display LCD
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 
+// Instancia do motor de passo do magazine
 AccelStepper magazine(AccelStepper::DRIVER, GPIO_NUM_16, GPIO_NUM_17);
 
 /**************** GLOBAL VARIABLES *****************/
@@ -196,14 +200,16 @@ static const char * MAGAZINE_TAG = "MAGAZINE";
 
 static const char * versao = "1.0.0";
 
+// declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = 
-# 207 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 212 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                        __null
-# 207 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 212 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                                            ;
 
 // declaração das estruturas de app e aluno
+// FALTA GRAVAR E TRABALHAR COM ESSAS CONFIGURAÇÔES PELA EEPROM
 app_config_t app = {
     .esteira = {
         .timer = {
@@ -278,14 +284,14 @@ aluno_config_t aluno = {
         .timer = {
             .speed_mode = LEDC_LOW_SPEED_MODE,
             .duty_resolution = LEDC_TIMER_12_BIT,
-            .timer_num = LEDC_TIMER_0,
+            .timer_num = LEDC_TIMER_1,
             .freq_hz = 1000,
             .clk_cfg = LEDC_AUTO_CLK
         },
         .channel = {
             .gpio_num = GPIO_NUM_5,
             .speed_mode = LEDC_LOW_SPEED_MODE,
-            .channel = LEDC_CHANNEL_0,
+            .channel = LEDC_CHANNEL_1,
             .duty = 0,
             .hpoint = 0
         },
@@ -295,25 +301,26 @@ aluno_config_t aluno = {
         .rampa_acel = 5000,
         .rampa_acel_max = 9999,
         .rampa_acel_min = 1000,
-        .pecas_per_min = 0,
         .sentido = CW,
         .is_running = false
     },
     .magazine = {
         .velocidade = 768,
-        .velocidade_max = 240,
+        .velocidade_max = 1920,
         .aceleracao = 1920,
-        .aceleracao_max = 600,
+        .aceleracao_max = 4800,
         .steps_per_rev = 384,
         .position = 0
     },
     .tcs = {
         .fd = {4162, 3764, 5166},
         .fw = {50551, 46568, 60065},
-        .read_time = 100
+        .read_time = 100,
+        .last_color = BLACK
     }
 };
 
+// Contrução dos caracteres especiais do display LCD
 uint8_t arrowUp[8] = {
     0b00000,
     0b00100,
@@ -374,14 +381,15 @@ uint8_t pow_2[8] = {
 
 /******************** INTERRUPTS ********************/
 
+// Função de interrupção para eventos da UART
 static void __attribute__((section(".iram1" "." "28"))) gpio_isr_handler(void *arg){
     if(xQueueIsQueueFullFromISR(gpio_event_queue) == ( ( BaseType_t ) 0 )) {
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueGenericSendFromISR( ( gpio_event_queue ), ( &gpio_num ), ( 
-# 384 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 392 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
        __null 
-# 384 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 392 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
        ), ( ( BaseType_t ) 0 ) );
     }
 }
@@ -1025,13 +1033,13 @@ void uartBegin(){
 
     // Cria a task no nucleo 0 com prioridade 1
     xTaskCreate(uart_event_task, "uart_event_task", 4096, 
-# 1026 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1034 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                          __null
-# 1026 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1034 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                                                              , 2, 
-# 1026 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1034 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                   __null
-# 1026 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1034 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                                                                       );
 
 } // end uart_init
@@ -1058,7 +1066,6 @@ void gpioBegin(){
     }
 
 } // end gpioBegin
-
 
 /*===============JSON===============*/
 void responseOK(){
@@ -1129,6 +1136,22 @@ void trataComandoRecebido(uint8_t * dt){
                     break;
                 }
             }
+            else if( ! strcmp(jsonType, "config")){
+                JsonObjectConst param = json_IN["param"];
+                if(param){
+                    const char * esteira = param["esteira"];
+                    if(esteira){
+                        app.esteira.duty = esteira["duty"];
+                        app.esteira.rampa_acel = esteira["rampa_acel"];
+                        app.esteira.sentido = esteira["sentido"];
+                        atualizaEsteira();
+                    }
+
+                }
+            }
+            else if( ! strcmp(jsonType, "sensorCal")){
+
+            }
         }
         else{
             responseError(99, "Tipo de comando não reconhecido");
@@ -1159,13 +1182,13 @@ static void uart_event_task(void *pvParameters){
             {
             case UART_DATA:
                 len = uart_read_bytes((0) /*!< UART port 0 */, data, (1024), 200 / ( ( TickType_t ) 1000 / ( 
-# 1152 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1175 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                        1000 
-# 1152 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1175 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                                                                        ) ));
                 if(len > 0){
                     data[len] = '\0'; // Trunca o buffer para trabalhar como uma string                   
-                    // printf("Dado recebido: %s\r\n", data);
+                    // printf("Dado recebido: %s\r\n", data); // DEBUG
                     if(data[len-1] == '\n' || data[len-1] == '\r' || data[len-1] == ' '){
                         data[len-1] = 0;
                         trataComandoRecebido(data);
@@ -1191,29 +1214,29 @@ static void uart_event_task(void *pvParameters){
     // Desacola a memória dinâmica criada na task
     free(data);
     data = 
-# 1180 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1203 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
           __null
-# 1180 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1203 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
               ;
     // Deleta a task após a sua conclusão
     vTaskDelete(
-# 1182 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1205 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1182 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1205 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                    );
 } // end uart_event_task
 
 static void principal_task(void *pvParameters){
     while(true){
         if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, app.status == RUNNING ? ( ( TickType_t ) ( ( ( TickType_t ) ( 500 ) * ( TickType_t ) ( 
-# 1187 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1210 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                         1000 
-# 1187 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1210 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                                                                                         ) ) / ( TickType_t ) 1000U ) ) : ( ( TickType_t ) ( ( ( TickType_t ) ( 1000 ) * ( TickType_t ) ( 
-# 1187 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1210 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                                              1000 
-# 1187 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
-                                                                                                             ) ) / ( TickType_t ) 1000U ) ))){
+# 1210 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+                                                                                                             ) ) / ( TickType_t ) 1000U ) ))){ // Aguarda por um evento de acionamento de botão da IHM
             switch (app.ihm.key_pressed)
             {
             case KEY_LEFT:
@@ -1236,6 +1259,7 @@ static void principal_task(void *pvParameters){
             }
         }
 
+        // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING
         if(app.status == RUNNING){
             if( ! app.esteira.is_running)
                 moverEsteira();
@@ -1265,27 +1289,30 @@ static void principal_task(void *pvParameters){
             if(app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
             tcs.read();
         }
-        atualizaTela();
+
+        atualizaTela(); // Atualiza o display LCD
     }
     // Deleta a task após a sua conclusão
     vTaskDelete(
-# 1242 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1267 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1242 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1267 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                    );
 }
 
 /********************** SETUP **********************/
 void setup(void){
-    // SETUP AND TASK CREATE
+    // Configura Uart e GPIO
     uartBegin();
     gpioBegin();
 
+    // Inicializa e configura o sensor de cores
     tcs.begin();
     tcs.setSampling(app.tcs.read_time);
     tcs.setDarkCal(&app.tcs.fd);
     tcs.setWhiteCal(&app.tcs.fw);
 
+    // Inicializa o display LCD e cria os caracteres especiais
     lcd.init();
     lcd.createChar(ARROW_UP, arrowUp );
     lcd.createChar(ARROW_DOWN, arrowDown);
@@ -1296,32 +1323,38 @@ void setup(void){
     lcd.backlight();
     atualizaTela();
 
+    // Configura os timers e canais usados para o controle da esteira
     ledc_timer_config(&app.esteira.timer);
     ledc_channel_config(&app.esteira.channel);
     ledc_fade_func_install(0);
 
+    // Configura os pinos usados para o controle da esteira e magazine
     pinMode(GPIO_NUM_18, 0x03);
     pinMode(GPIO_NUM_19, 0x03);
     pinMode(GPIO_NUM_23, 0x05);
 
+    // Carrega as configuraçãoes do magazine para instancia da lib AccelStepper
     magazine.setMaxSpeed(app.magazine.velocidade);
     magazine.setAcceleration(app.magazine.aceleracao);
 
+    // Faz o home do magazine e testa para ver se ocorreu algum erro
     bool error = zerarMagazine();
     if(error) app.status = ERROR_1;
     else app.status = STATE_OK;
 
+    // Cria a task principal com prioridade 3
     xTaskCreate(principal_task, "principal_task", 4096, 
-# 1281 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1313 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                        __null
-# 1281 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1313 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                                                            , 3, 
-# 1281 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1313 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                 __null
-# 1281 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
-                                                                    ); // Cria a task com prioridade 3
+# 1313 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+                                                                    );
 }
 /********************** LOOP **********************/
 void loop(void){
+    // Bloqueia a task loop, todo o processamento ocorre nas demais tasks
     vTaskDelay(( TickType_t ) 0xffffffffUL);
 }

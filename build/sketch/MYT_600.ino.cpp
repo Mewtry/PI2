@@ -70,6 +70,7 @@
 
 /******************** ESTRUTURAS *******************/
 
+// Enumerações
 enum telas_ihm {
     INICIALIZACAO  = 0,
     MENU_PRINCIPAL = 1,
@@ -122,6 +123,7 @@ enum status {
     ERROR_9
 };
 
+// Estruturas
 typedef struct {
     ledc_timer_config_t   timer;
     ledc_channel_config_t channel;
@@ -181,7 +183,7 @@ typedef struct {
 
 
 /******************** INSTANCES ********************/
-
+// Instancia do sensor de cor
 TCS230 tcs(
     TCS230_OUT_PIN, 
     TCS230_S2_PIN, 
@@ -191,8 +193,10 @@ TCS230 tcs(
     TCS230_OE_PIN
 );
 
+// Instancia do display LCD
 LiquidCrystal_I2C lcd(LCD_I2C_ADDR, 20, 4);
 
+// Instancia do motor de passo do magazine
 AccelStepper magazine(AccelStepper::DRIVER, MAGAZINE_PUL_PIN, MAGAZINE_DIR_PIN);
 
 /**************** GLOBAL VARIABLES *****************/ 
@@ -205,10 +209,12 @@ static const char * MAGAZINE_TAG = "MAGAZINE";
 
 static const char * versao = "1.0.0";
 
+// declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = NULL;
 
 // declaração das estruturas de app e aluno
+// FALTA GRAVAR E TRABALHAR COM ESSAS CONFIGURAÇÔES PELA EEPROM
 app_config_t app = {
     .esteira = {
         .timer = {
@@ -283,14 +289,14 @@ aluno_config_t aluno = {
         .timer = {
             .speed_mode      = LEDC_LOW_SPEED_MODE,
             .duty_resolution = ESTEIRA_RESOLUTION,
-            .timer_num       = LEDC_TIMER_0,
+            .timer_num       = LEDC_TIMER_1,
             .freq_hz         = ESTEIRA_FREQ,
             .clk_cfg         = LEDC_AUTO_CLK
         },
         .channel = {
             .gpio_num   = ESTEIRA_ENA,
             .speed_mode = LEDC_LOW_SPEED_MODE,
-            .channel    = LEDC_CHANNEL_0,
+            .channel    = LEDC_CHANNEL_1,
             .duty       = 0,
             .hpoint     = 0
         },
@@ -300,25 +306,26 @@ aluno_config_t aluno = {
         .rampa_acel     = 5000,
         .rampa_acel_max = 9999,
         .rampa_acel_min = 1000,
-        .pecas_per_min  = 0,
         .sentido        = CW,
         .is_running     = false
     },
     .magazine = {
         .velocidade     = MAGAZINE_SPEED,
-        .velocidade_max = 240,
+        .velocidade_max = 1920,
         .aceleracao     = MAGAZINE_ACCEL,
-        .aceleracao_max = 600,
+        .aceleracao_max = 4800,
         .steps_per_rev  = MAGAZINE_STEPS_PER_REV,
-        .position               = 0
+        .position       = 0
     },
     .tcs = {
-        .fd        = {4162, 3764, 5166},
-        .fw        = {50551, 46568, 60065},
-        .read_time = 100
+        .fd         = {4162, 3764, 5166},
+        .fw         = {50551, 46568, 60065},
+        .read_time  = 100,
+        .last_color = BLACK
     }
 };
 
+// Contrução dos caracteres especiais do display LCD
 uint8_t arrowUp[8] = {
     0b00000,
     0b00100,
@@ -379,69 +386,70 @@ uint8_t pow_2[8] = {
 
 /******************** INTERRUPTS ********************/
 
-#line 422 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+// Função de interrupção para eventos da UART
+#line 430 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void pararEsteira();
-#line 449 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 457 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void moverMagazinePara(uint8_t posicao);
-#line 467 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 475 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 bool zerarMagazine();
-#line 482 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 490 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void keyLeft();
-#line 504 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 512 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void keyRight();
-#line 522 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 530 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void keyUp();
-#line 563 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 571 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void keyDown();
-#line 602 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 610 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void keyEnter();
-#line 645 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 653 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void atualizaTela();
-#line 701 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 709 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void inicializacao();
-#line 721 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 729 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void menuPrincipal();
-#line 736 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 744 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void monitoramento();
-#line 775 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 783 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void menuAcionamentos();
-#line 792 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 800 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void menuProgAluno();
-#line 804 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 812 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void menuConfiguracao();
-#line 819 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 827 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void menuCreditos();
-#line 831 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 839 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void acionamentoEsteira();
-#line 852 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 860 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void acionamentoMagazine();
-#line 873 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 881 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void detecSensor();
-#line 924 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 932 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void configEsteira();
-#line 949 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 957 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void configMagazine();
-#line 977 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 985 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void configSensor();
-#line 1002 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1010 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void uartBegin();
-#line 1029 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1037 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void gpioBegin();
-#line 1055 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1062 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void responseOK();
-#line 1064 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1071 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void responseError( uint8_t code, const char * message);
-#line 1076 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1083 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void trataComandoRecebido(uint8_t * dt);
-#line 1137 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1160 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 static void uart_event_task(void *pvParameters);
-#line 1185 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1208 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 static void principal_task(void *pvParameters);
-#line 1246 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1271 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void setup(void);
-#line 1284 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1316 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void loop(void);
-#line 380 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 388 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 static void IRAM_ATTR gpio_isr_handler(void *arg){
     if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE) {
 
@@ -1115,7 +1123,6 @@ void gpioBegin(){
 
 } // end gpioBegin
 
-
 /*===============JSON===============*/
 void responseOK(){
     char * output = (char *) malloc((sizeof(char) * 50));
@@ -1185,6 +1192,22 @@ void trataComandoRecebido(uint8_t * dt){
                     break;
                 }
             }
+            else if( ! strcmp(jsonType, "config")){
+                JsonObjectConst param = json_IN["param"];
+                if(param){
+                    const char * esteira = param["esteira"];
+                    if(esteira){
+                        app.esteira.duty = esteira["duty"];
+                        app.esteira.rampa_acel = esteira["rampa_acel"];
+                        app.esteira.sentido = esteira["sentido"];
+                        atualizaEsteira();
+                    }
+                        
+                }
+            }
+            else if( ! strcmp(jsonType, "sensorCal")){
+
+            }
         }
         else{
             responseError(99, "Tipo de comando não reconhecido");
@@ -1217,7 +1240,7 @@ static void uart_event_task(void *pvParameters){
                 len = uart_read_bytes(UART_NUM_0, data, BUF_SIZE, 200 / portTICK_RATE_MS);
                 if(len > 0){
                     data[len] = '\0';  // Trunca o buffer para trabalhar como uma string                   
-                    // printf("Dado recebido: %s\r\n", data);
+                    // printf("Dado recebido: %s\r\n", data); // DEBUG
                     if(data[len-1] == '\n' || data[len-1] == '\r' || data[len-1] == ' '){
                         data[len-1] = 0;
                         trataComandoRecebido(data);
@@ -1249,7 +1272,7 @@ static void uart_event_task(void *pvParameters){
 
 static void principal_task(void *pvParameters){
     while(true){
-        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, app.status == RUNNING ? pdMS_TO_TICKS(500) : pdMS_TO_TICKS(1000))){
+        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, app.status == RUNNING ? pdMS_TO_TICKS(500) : pdMS_TO_TICKS(1000))){ // Aguarda por um evento de acionamento de botão da IHM
             switch (app.ihm.key_pressed)
             {
             case KEY_LEFT:
@@ -1272,6 +1295,7 @@ static void principal_task(void *pvParameters){
             }
         }
         
+        // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING
         if(app.status == RUNNING){
             if( ! app.esteira.is_running) 
                 moverEsteira();
@@ -1301,7 +1325,8 @@ static void principal_task(void *pvParameters){
             if(app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
             tcs.read();
         }
-        atualizaTela();
+
+        atualizaTela(); // Atualiza o display LCD
     }
     // Deleta a task após a sua conclusão
     vTaskDelete(NULL);
@@ -1309,15 +1334,17 @@ static void principal_task(void *pvParameters){
 
 /********************** SETUP **********************/
 void setup(void){
-    // SETUP AND TASK CREATE
+    // Configura Uart e GPIO
     uartBegin();
     gpioBegin();
 
+    // Inicializa e configura o sensor de cores
     tcs.begin();
     tcs.setSampling(app.tcs.read_time);
     tcs.setDarkCal(&app.tcs.fd);
     tcs.setWhiteCal(&app.tcs.fw);
 
+    // Inicializa o display LCD e cria os caracteres especiais
     lcd.init();
     lcd.createChar(ARROW_UP,   arrowUp  );
     lcd.createChar(ARROW_DOWN, arrowDown);
@@ -1328,25 +1355,31 @@ void setup(void){
     lcd.backlight();
     atualizaTela();
 
+    // Configura os timers e canais usados para o controle da esteira
     ledc_timer_config(&app.esteira.timer);
     ledc_channel_config(&app.esteira.channel);
     ledc_fade_func_install(0);
 
+    // Configura os pinos usados para o controle da esteira e magazine
     pinMode(ESTEIRA_IN1, OUTPUT);
     pinMode(ESTEIRA_IN2, OUTPUT);
     pinMode(MAGAZINE_ZERO_PIN, INPUT_PULLUP);
 
+    // Carrega as configuraçãoes do magazine para instancia da lib AccelStepper
     magazine.setMaxSpeed(app.magazine.velocidade);
     magazine.setAcceleration(app.magazine.aceleracao);
 
+    // Faz o home do magazine e testa para ver se ocorreu algum erro
     bool error = zerarMagazine();
     if(error) app.status = ERROR_1;
     else app.status = STATE_OK;
 
-    xTaskCreate(principal_task, "principal_task", 4096, NULL, 3, NULL); // Cria a task com prioridade 3
+    // Cria a task principal com prioridade 3
+    xTaskCreate(principal_task, "principal_task", 4096, NULL, 3, NULL); 
 }
 /********************** LOOP **********************/
 void loop(void){
+    // Bloqueia a task loop, todo o processamento ocorre nas demais tasks
     vTaskDelay(portMAX_DELAY);
 }
 

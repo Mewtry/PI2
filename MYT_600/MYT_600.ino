@@ -120,6 +120,11 @@ enum status {
     ERROR_8,
     ERROR_9
 };
+enum mode {
+    PADRAO,
+    BASICO,
+    EXPERT
+};
 
 // Estruturas
 typedef struct {
@@ -168,7 +173,8 @@ typedef struct {
     magazine_config_t magazine;
     tcs_config_t      tcs;
     ihm_config_t      ihm;  
-    bool              operation_mode;
+    uint8_t           operation_mode;
+    char              operation_mode_printable[3][8];
     uint8_t           status;
     char              status_printable[12][8];
     uint8_t           qtd_pecas[TCS230_RGB_SIZE];
@@ -249,8 +255,8 @@ app_config_t app = {
         .position       = 0
     },
     .tcs = {
-        .fd         = {4162, 3764, 5166},
-        .fw         = {50551, 46568, 60065},
+        .fd.value   = {4162, 3764, 5166},
+        .fw.value   = {50551, 46568, 60065},
         .read_time  = 100,
         .last_color = BLACK
     },
@@ -264,7 +270,12 @@ app_config_t app = {
         .key_pressed       = KEY_NONE,
         .button_pins       = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN}
     },
-    .operation_mode   = true,
+    .operation_mode   = PADRAO,
+    .operation_mode_printable = {
+        "PADRAO ",
+        "BASICO ",
+        "EXPERT "
+    },
     .status           = STATE_OK,
     .status_printable = {
         "OK     ",
@@ -316,8 +327,8 @@ aluno_config_t aluno = {
         .position       = 0
     },
     .tcs = {
-        .fd         = {4162, 3764, 5166},
-        .fw         = {50551, 46568, 60065},
+        .fd.value   = {4162, 3764, 5166},
+        .fw.value   = {50551, 46568, 60065},
         .read_time  = 100,
         .last_color = BLACK
     }
@@ -398,16 +409,19 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
 /*=============Esteira==============*/
 void moverEsteira(bool acionamentoManual = false){
 
-    digitalWrite(ESTEIRA_IN1, app.esteira.sentido);
-    digitalWrite(ESTEIRA_IN2, !app.esteira.sentido);
-    
+    digitalWrite(ESTEIRA_IN1, app.operation_mode == PADRAO ?  app.esteira.sentido :  aluno.esteira.sentido);
+    digitalWrite(ESTEIRA_IN2, app.operation_mode == PADRAO ? !app.esteira.sentido : !aluno.esteira.sentido);
+
+    int duty = app.operation_mode == PADRAO ? app.esteira.duty : aluno.esteira.duty;
+
     ledc_set_fade_time_and_start(
         app.esteira.channel.speed_mode, 
         app.esteira.channel.channel,
-        acionamentoManual == true ? app.esteira.duty_acionamento : app.esteira.duty, 
+        acionamentoManual == true ? app.esteira.duty_acionamento : duty, 
         app.esteira.rampa_acel, 
         LEDC_FADE_NO_WAIT
     );
+
 
     app.esteira.is_running = true;
     if(app.status != RUNNING) 
@@ -416,13 +430,15 @@ void moverEsteira(bool acionamentoManual = false){
 }
 void atualizaEsteira(bool acionamentoManual = false){
 
-    digitalWrite(ESTEIRA_IN1, app.esteira.sentido);
-    digitalWrite(ESTEIRA_IN2, !app.esteira.sentido);
+    digitalWrite(ESTEIRA_IN1, app.operation_mode == PADRAO ?  app.esteira.sentido :  aluno.esteira.sentido);
+    digitalWrite(ESTEIRA_IN2, app.operation_mode == PADRAO ? !app.esteira.sentido : !aluno.esteira.sentido);
+
+    int duty = app.operation_mode == PADRAO ? app.esteira.duty : aluno.esteira.duty;
 
     ledc_set_duty_and_update(
         app.esteira.channel.speed_mode, 
         app.esteira.channel.channel, 
-        acionamentoManual == true ? app.esteira.duty_acionamento : app.esteira.duty, 
+        acionamentoManual == true ? app.esteira.duty_acionamento : duty, 
         0
     );
 
@@ -446,8 +462,8 @@ void pararEsteira(){
 
 /*=============MAGAZINE=============*/
 void moverMagazine(bool sentido = CW, bool acionamentoManual = false){
-    magazine.setMaxSpeed(app.magazine.velocidade);
-    magazine.setAcceleration(app.magazine.aceleracao);
+    magazine.setMaxSpeed(app.operation_mode == PADRAO ? app.magazine.velocidade : aluno.magazine.velocidade);
+    magazine.setAcceleration(app.operation_mode == PADRAO ? app.magazine.aceleracao : aluno.magazine.aceleracao);
     // app.status = MANUAL;
     magazine.move((int)(sentido == CW ? app.magazine.steps_per_rev : -app.magazine.steps_per_rev)/3);
     magazine.runToPosition();
@@ -462,15 +478,16 @@ void moverMagazinePara(uint8_t posicao){
     // if(posicao == app.magazine.position) return;
     // n = posicao - app.magazine.position;
     // if(n < 0) n += 3; // CW
-    magazine.setMaxSpeed(app.magazine.velocidade);
-    magazine.setAcceleration(app.magazine.aceleracao);
+    magazine.setMaxSpeed(app.operation_mode == PADRAO ? app.magazine.velocidade : aluno.magazine.velocidade);
+    magazine.setAcceleration(app.operation_mode == PADRAO ? app.magazine.aceleracao : aluno.magazine.aceleracao);
     magazine.move(n * (app.magazine.steps_per_rev/3));
     magazine.runToPosition();
     app.magazine.position = posicao;
 }
 void atualizaMagazine(bool acionmanetoManual = false){
-    magazine.setMaxSpeed(acionmanetoManual ? app.magazine.velocidade_acionamento : app.magazine.velocidade);
-    magazine.setAcceleration(app.magazine.aceleracao);
+    if(acionmanetoManual) magazine.setMaxSpeed(app.magazine.velocidade_acionamento);
+    else magazine.setMaxSpeed(app.operation_mode == PADRAO ? app.magazine.velocidade : aluno.magazine.velocidade);
+    magazine.setAcceleration(app.operation_mode == PADRAO ? app.magazine.aceleracao : aluno.magazine.aceleracao);
 }
 bool zerarMagazine(){
     magazine.setMaxSpeed(app.magazine.velocidade/3);
@@ -616,7 +633,7 @@ void keyEnter(){
         app.ihm.tela_atual = app.ihm.tela_atual * 10 + app.ihm.linha_atual;
 
     else if(app.ihm.tela_atual == MENU_ACIONAMENTOS && app.ihm.linha_atual == 0)
-        app.operation_mode = !app.operation_mode;
+        app.operation_mode < EXPERT ? app.operation_mode++ : app.operation_mode = PADRAO;
 
     else if(app.ihm.tela_atual == MENU_ESTEIRA || app.ihm.tela_atual == MENU_MAGAZINE){
         app.ihm.tela_atual = app.ihm.tela_atual / 10;
@@ -745,7 +762,7 @@ void monitoramento() {
     app.ihm.linha_max = 0; // Desabilita a seleção de linha
     lcd.setCursor(0,0);
     lcd.print("QTD|MODO OP: ");
-    app.operation_mode ? lcd.print("PADRAO ") : lcd.print("PROG.  ");
+    lcd.print(app.operation_mode_printable[app.operation_mode]);
     lcd.setCursor(0,1);
     lcd.print("R~");
     lcd.print(app.qtd_pecas[RED]);
@@ -834,7 +851,7 @@ void menuCreditos() {
     lcd.setCursor(0,2);
     lcd.print("    Theo V. Pires   ");
     lcd.setCursor(0,3);
-    lcd.print("    Denise Costa    ");
+    lcd.print("                    ");
 }
 void acionamentoEsteira() {
     app.ihm.linha_max = 0; // Desabilita a seleção de linha
@@ -1080,6 +1097,18 @@ void responseError( uint8_t code, const char * message){
     printf("%s\r\n", output);
     free(output);
 }
+void sendSensorJson(){
+    char * output = (char *) malloc((sizeof(char) * 200));
+    StaticJsonDocument<200> json_OUT;
+    json_OUT["type"] = "sensor";
+    JsonArray rgb = json_OUT.createNestedArray("rgb");
+    rgb.add(app.tcs.rgb.value[RED]);
+    rgb.add(app.tcs.rgb.value[GREEN]);
+    rgb.add(app.tcs.rgb.value[BLUE]);
+    serializeJson(json_OUT, output, 200);
+    printf("%s\r\n", output);
+    free(output);
+}
 void trataComandoRecebido(uint8_t * dt){
     // printf("Dado em tratamento: %s\r\n", dt);
     if(dt[0] == 'v'){
@@ -1107,35 +1136,106 @@ void trataComandoRecebido(uint8_t * dt){
                 responseOK();
                 return;
             }
-            else if( ! strcmp(jsonType, "magazine")){
-                uint8_t position = json_IN["position"];
-                switch (position)
-                {
-                case RED:
-                    app.qtd_pecas[RED]++;
-                    moverMagazinePara(RED);
-                    break;
-                case GREEN:
-                    app.qtd_pecas[GREEN]++;
-                    moverMagazinePara(GREEN);
-                    break;
-                case BLUE:
-                    app.qtd_pecas[BLUE]++;
-                    moverMagazinePara(BLUE);
-                    break;               
-                default:
-                    break;
+            else if( ! strcmp(jsonType, "config")){
+                JsonObjectConst param = json_IN["param"];
+                if(param){
+                    app.operation_mode = param["mode"] | app.operation_mode;
+                    JsonObjectConst esteira = param["esteira"];
+                    if(esteira){
+                        aluno.esteira.duty = esteira["vel"] | aluno.esteira.duty;
+                        aluno.esteira.rampa_acel = esteira["acel"] | aluno.esteira.rampa_acel;
+                        aluno.esteira.sentido = esteira["sentido"];
+                        atualizaEsteira();
+                    }
+                    JsonObjectConst magazine = param["magazine"];
+                    if(magazine){
+                        aluno.magazine.velocidade = magazine["vel"] | aluno.magazine.velocidade;
+                        aluno.magazine.aceleracao = magazine["acel"] | aluno.magazine.aceleracao;
+                        atualizaMagazine();
+                    }
+                    JsonObjectConst sensor = param["sensor"];
+                    if(sensor){
+                        JsonArrayConst fd = sensor["fd"];
+                        JsonArrayConst fw = sensor["fw"];
+                        aluno.tcs.read_time = sensor["readTime"] | aluno.tcs.read_time;
+                        for(int i = 0; i < 3; i++){
+                            aluno.tcs.fd.value[i] = fd[i] > 0 ? fd[i] : aluno.tcs.fd.value[i];
+                            aluno.tcs.fw.value[i] = fw[i] > 0 ? fw[i] : aluno.tcs.fw.value[i];
+                        }
+                        tcs.setDarkCal(&aluno.tcs.fd);
+                        tcs.setWhiteCal(&aluno.tcs.fw);
+                        tcs.setSampling(aluno.tcs.read_time);
+                    } 
+                    responseOK();
+                }
+                else{
+                    responseError(98, "Parametros nao encontrados");
+                    return;
                 }
             }
-            else if( ! strcmp(jsonType, "config")){
-
+            else if( ! strcmp(jsonType, "esteira")){
+                if(app.operation_mode == EXPERT){
+                    bool ativarEsteira = json_IN["ativa"];
+                    uint8_t sentido = json_IN["sentido"] | 2;
+                    if(sentido == CW || sentido == CCW) app.esteira.sentido = sentido;
+                    if(ativarEsteira) moverEsteira();
+                    else if(app.esteira.is_running) pararEsteira();
+                    responseOK();
+                }
+                else{
+                    responseError(97, "Comando nao permito para o modo de operacao atual");
+                    return;
+                }
+                
             }
-            else if( ! strcmp(jsonType, "sensorCal")){
-
+            else if( ! strcmp(jsonType, "magazine")){
+                if(app.operation_mode == EXPERT){
+                    uint8_t position = json_IN["position"] | 10;
+                    switch (position)
+                    {
+                    case RED:
+                        app.qtd_pecas[RED]++;
+                        moverMagazinePara(RED);
+                        break;
+                    case GREEN:
+                        app.qtd_pecas[GREEN]++;
+                        moverMagazinePara(GREEN);
+                        break;
+                    case BLUE:
+                        app.qtd_pecas[BLUE]++;
+                        moverMagazinePara(BLUE);
+                        break;               
+                    default:
+                        responseError(96, "Parametro position invalido ou ausente");
+                        break;
+                    }
+                    responseOK();
+                }
+                else{
+                    responseError(97, "Comando nao permito para o modo de operacao atual");
+                    return;
+                }
+            }
+            else if( ! strcmp(jsonType, "start")){
+                if(app.operation_mode == BASICO){
+                    app.status = RUNNING;
+                    responseOK();
+                    return;
+                }
+                else{
+                    responseError(97, "Comando nao permito para o modo de operacao atual");
+                    return;
+                }
+            }
+            else if( ! strcmp(jsonType, "stop")){
+                pararEsteira();
+                app.status = STATE_OK;
+                responseOK();
+                return;
             }
         }
         else{
-            responseError(99, "Tipo de comando não reconhecido");
+            responseError(99, "Tipo de comando nao reconhecido");
             return;
         }
     }
@@ -1221,10 +1321,10 @@ static void principal_task(void *pvParameters){
         }
         
         // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING
-        if(app.status == RUNNING){
-            if( ! app.esteira.is_running) 
-                moverEsteira();
-            tcs.read();
+        tcs.read();
+        
+        if(app.operation_mode != EXPERT && app.status == RUNNING){
+            if( ! app.esteira.is_running) moverEsteira();
             if(tcs.getColor() != app.tcs.last_color) {
                 switch (tcs.getColor())
                 {
@@ -1243,14 +1343,11 @@ static void principal_task(void *pvParameters){
                 default:
                     break;
                 }
+                app.tcs.last_color = tcs.getColor();
             }
-            app.tcs.last_color = tcs.getColor();
         }
-        else {
-            if(app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
-            tcs.read();
-        }
-
+        else if(app.operation_mode != EXPERT && app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
+        else if(app.operation_mode == EXPERT) sendSensorJson();
         atualizaTela(); // Atualiza o display LCD
     }
     // Deleta a task após a sua conclusão
