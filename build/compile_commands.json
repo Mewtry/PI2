@@ -496,6 +496,7 @@
    "C:\\workspace\\PI2\\build\\sketch\\TCS230.cpp.o"
   ],
   "file": "C:\\workspace\\PI2\\build\\sketch\\TCS230.cpp"
+<<<<<<< HEAD
  },
  {
   "directory": "c:\\workspace\\PI2",
@@ -1492,5 +1493,7 @@
    "C:\\workspace\\PI2\\build\\libraries\\LiquidCrystal_I2C\\LiquidCrystal_I2C.cpp.o"
   ],
   "file": "C:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\LiquidCrystal_I2C\\LiquidCrystal_I2C.cpp"
+=======
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
  }
 ]

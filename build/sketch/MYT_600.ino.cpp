@@ -300,14 +300,14 @@ aluno_config_t aluno = {
         .timer = {
             .speed_mode      = LEDC_LOW_SPEED_MODE,
             .duty_resolution = ESTEIRA_RESOLUTION,
-            .timer_num       = LEDC_TIMER_0,
+            .timer_num       = LEDC_TIMER_1,
             .freq_hz         = ESTEIRA_FREQ,
             .clk_cfg         = LEDC_AUTO_CLK
         },
         .channel = {
             .gpio_num   = ESTEIRA_ENA,
             .speed_mode = LEDC_LOW_SPEED_MODE,
-            .channel    = LEDC_CHANNEL_0,
+            .channel    = LEDC_CHANNEL_1,
             .duty       = 0,
             .hpoint     = 0
         },
@@ -398,6 +398,7 @@ uint8_t pow_2[8] = {
 /******************** INTERRUPTS ********************/
 
 // Função de interrupção para eventos da UART
+<<<<<<< HEAD
 #line 468 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void pararEsteira();
 #line 495 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
@@ -463,6 +464,71 @@ void setup(void);
 #line 1425 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void loop(void);
 #line 399 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+=======
+#line 430 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void pararEsteira();
+#line 457 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void moverMagazinePara(uint8_t posicao);
+#line 475 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+bool zerarMagazine();
+#line 490 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void keyLeft();
+#line 512 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void keyRight();
+#line 530 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void keyUp();
+#line 571 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void keyDown();
+#line 610 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void keyEnter();
+#line 653 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void atualizaTela();
+#line 709 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void inicializacao();
+#line 729 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void menuPrincipal();
+#line 744 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void monitoramento();
+#line 783 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void menuAcionamentos();
+#line 800 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void menuProgAluno();
+#line 812 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void menuConfiguracao();
+#line 827 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void menuCreditos();
+#line 839 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void acionamentoEsteira();
+#line 860 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void acionamentoMagazine();
+#line 881 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void detecSensor();
+#line 932 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void configEsteira();
+#line 957 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void configMagazine();
+#line 985 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void configSensor();
+#line 1010 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void uartBegin();
+#line 1037 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void gpioBegin();
+#line 1062 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void responseOK();
+#line 1071 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void responseError( uint8_t code, const char * message);
+#line 1083 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void trataComandoRecebido(uint8_t * dt);
+#line 1160 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+static void uart_event_task(void *pvParameters);
+#line 1208 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+static void principal_task(void *pvParameters);
+#line 1271 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void setup(void);
+#line 1316 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+void loop(void);
+#line 388 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
 static void IRAM_ATTR gpio_isr_handler(void *arg){
     if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE) {
 
@@ -1322,6 +1388,22 @@ void trataComandoRecebido(uint8_t * dt){
                 responseOK();
                 return;
             }
+            else if( ! strcmp(jsonType, "config")){
+                JsonObjectConst param = json_IN["param"];
+                if(param){
+                    const char * esteira = param["esteira"];
+                    if(esteira){
+                        app.esteira.duty = esteira["duty"];
+                        app.esteira.rampa_acel = esteira["rampa_acel"];
+                        app.esteira.sentido = esteira["sentido"];
+                        atualizaEsteira();
+                    }
+                        
+                }
+            }
+            else if( ! strcmp(jsonType, "sensorCal")){
+
+            }
         }
         else{
             responseError(99, "Tipo de comando nao reconhecido");
@@ -1410,10 +1492,17 @@ static void principal_task(void *pvParameters){
         }
         
         // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING
+<<<<<<< HEAD
         tcs.read();
         
         if(app.operation_mode != EXPERT && app.status == RUNNING){
             if( ! app.esteira.is_running) moverEsteira();
+=======
+        if(app.status == RUNNING){
+            if( ! app.esteira.is_running) 
+                moverEsteira();
+            tcs.read();
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
             if(tcs.getColor() != app.tcs.last_color) {
                 switch (tcs.getColor())
                 {
@@ -1435,8 +1524,16 @@ static void principal_task(void *pvParameters){
                 app.tcs.last_color = tcs.getColor();
             }
         }
+<<<<<<< HEAD
         else if(app.operation_mode != EXPERT && app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
         else if(app.operation_mode == EXPERT) sendSensorJson();
+=======
+        else {
+            if(app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
+            tcs.read();
+        }
+
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
         atualizaTela(); // Atualiza o display LCD
     }
     // Deleta a task após a sua conclusão
@@ -1472,8 +1569,13 @@ void setup(void){
     ledc_fade_func_install(0);
 
     // Configura os pinos usados para o controle da esteira e magazine
+<<<<<<< HEAD
     pinMode(ESTEIRA_IN3, OUTPUT);
     pinMode(ESTEIRA_IN4, OUTPUT);
+=======
+    pinMode(ESTEIRA_IN1, OUTPUT);
+    pinMode(ESTEIRA_IN2, OUTPUT);
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
     pinMode(MAGAZINE_ZERO_PIN, INPUT_PULLUP);
 
     // Carrega as configuraçãoes do magazine para instancia da lib AccelStepper

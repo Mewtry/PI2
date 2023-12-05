@@ -209,9 +209,15 @@ static const char * versao = "1.0.0";
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = 
+<<<<<<< HEAD
 # 218 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                        __null
 # 218 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+=======
+# 212 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                       __null
+# 212 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
                                            ;
 
 // declaração das estruturas de app e aluno
@@ -295,14 +301,14 @@ aluno_config_t aluno = {
         .timer = {
             .speed_mode = LEDC_LOW_SPEED_MODE,
             .duty_resolution = LEDC_TIMER_12_BIT,
-            .timer_num = LEDC_TIMER_0,
+            .timer_num = LEDC_TIMER_1,
             .freq_hz = 1000,
             .clk_cfg = LEDC_AUTO_CLK
         },
         .channel = {
             .gpio_num = GPIO_NUM_5,
             .speed_mode = LEDC_LOW_SPEED_MODE,
-            .channel = LEDC_CHANNEL_0,
+            .channel = LEDC_CHANNEL_1,
             .duty = 0,
             .hpoint = 0
         },
@@ -398,9 +404,15 @@ static void __attribute__((section(".iram1" "." "28"))) gpio_isr_handler(void *a
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueGenericSendFromISR( ( gpio_event_queue ), ( &gpio_num ), ( 
+<<<<<<< HEAD
 # 403 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
        __null 
 # 403 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+=======
+# 392 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+       __null 
+# 392 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
        ), ( ( BaseType_t ) 0 ) );
     }else{
         xQueueGenericReset( gpio_event_queue, ( ( BaseType_t ) 0 ) );
@@ -1072,6 +1084,7 @@ void uartBegin(){
 
     // Cria a task no nucleo 0 com prioridade 1
     xTaskCreate(uart_event_task, "uart_event_task", 4096, 
+<<<<<<< HEAD
 # 1073 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                          __null
 # 1073 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
@@ -1079,6 +1092,15 @@ void uartBegin(){
 # 1073 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                   __null
 # 1073 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+=======
+# 1034 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                                         __null
+# 1034 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+                                                             , 2, 
+# 1034 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                                                  __null
+# 1034 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
                                                                       );
 
 } // end uart_init
@@ -1264,6 +1286,22 @@ void trataComandoRecebido(uint8_t * dt){
                 responseOK();
                 return;
             }
+            else if( ! strcmp(jsonType, "config")){
+                JsonObjectConst param = json_IN["param"];
+                if(param){
+                    const char * esteira = param["esteira"];
+                    if(esteira){
+                        app.esteira.duty = esteira["duty"];
+                        app.esteira.rampa_acel = esteira["rampa_acel"];
+                        app.esteira.sentido = esteira["sentido"];
+                        atualizaEsteira();
+                    }
+
+                }
+            }
+            else if( ! strcmp(jsonType, "sensorCal")){
+
+            }
         }
         else{
             responseError(99, "Tipo de comando nao reconhecido");
@@ -1294,10 +1332,17 @@ static void uart_event_task(void *pvParameters){
             {
             case UART_DATA:
                 len = uart_read_bytes((0) /*!< UART port 0 */, data, (1024), 200 / ( ( TickType_t ) 1000 / ( 
+<<<<<<< HEAD
 # 1287 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                      1000 
 # 1287 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                                                                      ) ));
+=======
+# 1175 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                                                       1000 
+# 1175 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+                                                                       ) ));
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
                 if(len > 0){
                     data[len] = '\0'; // Trunca o buffer para trabalhar como uma string                   
                     // printf("Dado recebido: %s\r\n", data); // DEBUG
@@ -1326,6 +1371,7 @@ static void uart_event_task(void *pvParameters){
     // Desacola a memória dinâmica criada na task
     free(data);
     data = 
+<<<<<<< HEAD
 # 1315 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
           __null
 # 1315 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
@@ -1335,12 +1381,24 @@ static void uart_event_task(void *pvParameters){
 # 1317 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
 # 1317 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+=======
+# 1203 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+          __null
+# 1203 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+              ;
+    // Deleta a task após a sua conclusão
+    vTaskDelete(
+# 1205 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+               __null
+# 1205 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
                    );
 } // end uart_event_task
 
 static void principal_task(void *pvParameters){
     while(true){
         if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, app.status == RUNNING ? ( ( TickType_t ) ( ( ( TickType_t ) ( 500 ) * ( TickType_t ) ( 
+<<<<<<< HEAD
 # 1322 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                         1000 
 # 1322 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
@@ -1348,6 +1406,15 @@ static void principal_task(void *pvParameters){
 # 1322 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                                              1000 
 # 1322 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+=======
+# 1210 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                                                                        1000 
+# 1210 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+                                                                                        ) ) / ( TickType_t ) 1000U ) ) : ( ( TickType_t ) ( ( ( TickType_t ) ( 1000 ) * ( TickType_t ) ( 
+# 1210 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                                                                                             1000 
+# 1210 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
                                                                                                              ) ) / ( TickType_t ) 1000U ) ))){ // Aguarda por um evento de acionamento de botão da IHM
             switch (app.ihm.key_pressed)
             {
@@ -1372,10 +1439,17 @@ static void principal_task(void *pvParameters){
         }
 
         // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING
+<<<<<<< HEAD
         tcs.read();
 
         if(app.operation_mode != EXPERT && app.status == RUNNING){
             if( ! app.esteira.is_running) moverEsteira();
+=======
+        if(app.status == RUNNING){
+            if( ! app.esteira.is_running)
+                moverEsteira();
+            tcs.read();
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
             if(tcs.getColor() != app.tcs.last_color) {
                 switch (tcs.getColor())
                 {
@@ -1397,15 +1471,29 @@ static void principal_task(void *pvParameters){
                 app.tcs.last_color = tcs.getColor();
             }
         }
+<<<<<<< HEAD
         else if(app.operation_mode != EXPERT && app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
         else if(app.operation_mode == EXPERT) sendSensorJson();
+=======
+        else {
+            if(app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
+            tcs.read();
+        }
+
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
         atualizaTela(); // Atualiza o display LCD
     }
     // Deleta a task após a sua conclusão
     vTaskDelete(
+<<<<<<< HEAD
 # 1376 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
 # 1376 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+=======
+# 1267 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+               __null
+# 1267 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
                    );
 }
 
@@ -1453,6 +1541,7 @@ void setup(void){
 
     // Cria a task principal com prioridade 3
     xTaskCreate(principal_task, "principal_task", 4096, 
+<<<<<<< HEAD
 # 1422 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                        __null
 # 1422 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
@@ -1460,6 +1549,15 @@ void setup(void){
 # 1422 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                 __null
 # 1422 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+=======
+# 1313 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                                       __null
+# 1313 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+                                                           , 3, 
+# 1313 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                                                __null
+# 1313 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+>>>>>>> 1269062a9d67cedb2b97841cb8469d48f11dac4a
                                                                     );
 }
 /********************** LOOP **********************/

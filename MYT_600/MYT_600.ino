@@ -255,8 +255,8 @@ app_config_t app = {
         .position       = 0
     },
     .tcs = {
-        .fd         = {4162, 3764, 5166},
-        .fw         = {50551, 46568, 60065},
+        .fd.value   = {4162, 3764, 5166},
+        .fw.value   = {50551, 46568, 60065},
         .read_time  = 100,
         .last_color = BLACK
     },
@@ -298,14 +298,14 @@ aluno_config_t aluno = {
         .timer = {
             .speed_mode      = LEDC_LOW_SPEED_MODE,
             .duty_resolution = ESTEIRA_RESOLUTION,
-            .timer_num       = LEDC_TIMER_0,
+            .timer_num       = LEDC_TIMER_1,
             .freq_hz         = ESTEIRA_FREQ,
             .clk_cfg         = LEDC_AUTO_CLK
         },
         .channel = {
             .gpio_num   = ESTEIRA_ENA,
             .speed_mode = LEDC_LOW_SPEED_MODE,
-            .channel    = LEDC_CHANNEL_0,
+            .channel    = LEDC_CHANNEL_1,
             .duty       = 0,
             .hpoint     = 0
         },
@@ -327,10 +327,9 @@ aluno_config_t aluno = {
         .position       = 0
     },
     .tcs = {
-        .fd         = {4162, 3764, 5166},
-        .fw         = {50551, 46568, 60065},
-        .read_time  = 100,
-        .last_color = BLACK
+        .fd        = {4162, 3764, 5166},
+        .fw        = {50551, 46568, 60065},
+        .read_time = 100
     }
 };
 
@@ -433,6 +432,7 @@ void moverEsteira(bool acionamentoManual = false){
         app.esteira.rampa_acel, 
         LEDC_FADE_NO_WAIT
     );
+
 
 
     app.esteira.is_running = true;
