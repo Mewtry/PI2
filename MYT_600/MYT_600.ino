@@ -24,8 +24,8 @@
 /********************* DEFINES *********************/
 
 // MOTOR CC DA ESTEIRA
-#define ESTEIRA_IN1  GPIO_NUM_18
-#define ESTEIRA_IN2  GPIO_NUM_19
+#define ESTEIRA_IN3  GPIO_NUM_18
+#define ESTEIRA_IN4  GPIO_NUM_19
 #define ESTEIRA_ENA  GPIO_NUM_5
 #define ESTEIRA_FADE_TIME 5000
 #define ESTEIRA_FREQ 1000
@@ -68,6 +68,7 @@
 
 /******************** ESTRUTURAS *******************/
 
+// Enumerações
 enum telas_ihm {
     INICIALIZACAO  = 0,
     MENU_PRINCIPAL = 1,
@@ -119,7 +120,13 @@ enum status {
     ERROR_8,
     ERROR_9
 };
+enum mode {
+    PADRAO,
+    BASICO,
+    EXPERT
+};
 
+// Estruturas
 typedef struct {
     ledc_timer_config_t   timer;
     ledc_channel_config_t channel;
@@ -166,7 +173,8 @@ typedef struct {
     magazine_config_t magazine;
     tcs_config_t      tcs;
     ihm_config_t      ihm;  
-    bool              operation_mode;
+    uint8_t           operation_mode;
+    char              operation_mode_printable[3][8];
     uint8_t           status;
     char              status_printable[12][8];
     uint8_t           qtd_pecas[TCS230_RGB_SIZE];
@@ -179,7 +187,7 @@ typedef struct {
 
 
 /******************** INSTANCES ********************/
-
+// Instancia do sensor de cor
 TCS230 tcs(
     TCS230_OUT_PIN, 
     TCS230_S2_PIN, 
@@ -189,8 +197,10 @@ TCS230 tcs(
     TCS230_OE_PIN
 );
 
+// Instancia do display LCD
 LiquidCrystal_I2C lcd(LCD_I2C_ADDR, 20, 4);
 
+// Instancia do motor de passo do magazine
 AccelStepper magazine(AccelStepper::DRIVER, MAGAZINE_PUL_PIN, MAGAZINE_DIR_PIN);
 
 /**************** GLOBAL VARIABLES *****************/ 
@@ -203,23 +213,25 @@ static const char * MAGAZINE_TAG = "MAGAZINE";
 
 static const char * versao = "1.0.0";
 
+// declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = NULL;
 
 // declaração das estruturas de app e aluno
+// FALTA GRAVAR E TRABALHAR COM ESSAS CONFIGURAÇÔES PELA EEPROM
 app_config_t app = {
     .esteira = {
         .timer = {
             .speed_mode      = LEDC_LOW_SPEED_MODE,
             .duty_resolution = ESTEIRA_RESOLUTION,
-            .timer_num       = LEDC_TIMER_1,
+            .timer_num       = LEDC_TIMER_0,
             .freq_hz         = ESTEIRA_FREQ,
             .clk_cfg         = LEDC_AUTO_CLK
         },
         .channel = {
             .gpio_num   = ESTEIRA_ENA,
             .speed_mode = LEDC_LOW_SPEED_MODE,
-            .channel    = LEDC_CHANNEL_1,
+            .channel    = LEDC_CHANNEL_0,
             .duty       = 0,
             .hpoint     = 0
         },
@@ -258,7 +270,12 @@ app_config_t app = {
         .key_pressed       = KEY_NONE,
         .button_pins       = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN}
     },
-    .operation_mode   = true,
+    .operation_mode   = PADRAO,
+    .operation_mode_printable = {
+        "PADRAO ",
+        "BASICO ",
+        "EXPERT "
+    },
     .status           = STATE_OK,
     .status_printable = {
         "OK     ",
@@ -292,31 +309,32 @@ aluno_config_t aluno = {
             .duty       = 0,
             .hpoint     = 0
         },
-        .duty           = 0,
+        .duty           = TOP,
         .duty_max       = TOP,
         .velocidade     = 0,
         .rampa_acel     = 5000,
         .rampa_acel_max = 9999,
         .rampa_acel_min = 1000,
-        .pecas_per_min  = 0,
         .sentido        = CW,
         .is_running     = false
     },
     .magazine = {
         .velocidade     = MAGAZINE_SPEED,
-        .velocidade_max = 240,
+        .velocidade_max = 1920,
         .aceleracao     = MAGAZINE_ACCEL,
-        .aceleracao_max = 600,
+        .aceleracao_max = 4800,
         .steps_per_rev  = MAGAZINE_STEPS_PER_REV,
-        .position               = 0
+        .position       = 0
     },
     .tcs = {
-        .fd        = {4162, 3764, 5166},
-        .fw        = {50551, 46568, 60065},
-        .read_time = 100
+        .fd         = {4162, 3764, 5166},
+        .fw         = {50551, 46568, 60065},
+        .read_time  = 100,
+        .last_color = BLACK
     }
 };
 
+// Contrução dos caracteres especiais do display LCD
 uint8_t arrowUp[8] = {
     0b00000,
     0b00100,
@@ -377,11 +395,14 @@ uint8_t pow_2[8] = {
 
 /******************** INTERRUPTS ********************/
 
+// Função de interrupção para eventos da UART
 static void IRAM_ATTR gpio_isr_handler(void *arg){
     if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE) {
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueSendFromISR(gpio_event_queue, &gpio_num, NULL);
+    }else{
+        xQueueReset(gpio_event_queue);
     }
 }
 
@@ -390,16 +411,29 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
 /*=============Esteira==============*/
 void moverEsteira(bool acionamentoManual = false){
 
-    digitalWrite(ESTEIRA_IN1, app.esteira.sentido);
-    digitalWrite(ESTEIRA_IN2, !app.esteira.sentido);
+    digitalWrite(ESTEIRA_IN3, app.operation_mode == PADRAO ?  app.esteira.sentido :  aluno.esteira.sentido);
+    digitalWrite(ESTEIRA_IN4, app.operation_mode == PADRAO ? !app.esteira.sentido : !aluno.esteira.sentido);
+
+    uint32_t duty;
     
+    if(acionamentoManual == true){
+        duty = app.esteira.duty_acionamento;
+    }
+    else if(app.operation_mode == PADRAO){
+        duty =  app.esteira.duty;
+    }
+    else {
+        duty = aluno.esteira.duty;
+    }
+
     ledc_set_fade_time_and_start(
         app.esteira.channel.speed_mode, 
         app.esteira.channel.channel,
-        acionamentoManual == true ? app.esteira.duty_acionamento : app.esteira.duty, 
+        duty, 
         app.esteira.rampa_acel, 
         LEDC_FADE_NO_WAIT
     );
+
 
     app.esteira.is_running = true;
     if(app.status != RUNNING) 
@@ -408,21 +442,33 @@ void moverEsteira(bool acionamentoManual = false){
 }
 void atualizaEsteira(bool acionamentoManual = false){
 
-    digitalWrite(ESTEIRA_IN1, app.esteira.sentido);
-    digitalWrite(ESTEIRA_IN2, !app.esteira.sentido);
+    digitalWrite(ESTEIRA_IN3, app.operation_mode == PADRAO ?  app.esteira.sentido :  aluno.esteira.sentido);
+    digitalWrite(ESTEIRA_IN4, app.operation_mode == PADRAO ? !app.esteira.sentido : !aluno.esteira.sentido);
+
+    uint32_t duty;
+
+    if(acionamentoManual == true){
+        duty = app.esteira.duty_acionamento;
+    }
+    else if(app.operation_mode == PADRAO){
+        duty =  app.esteira.duty;
+    }
+    else {
+        duty = aluno.esteira.duty;
+    }
 
     ledc_set_duty_and_update(
         app.esteira.channel.speed_mode, 
         app.esteira.channel.channel, 
-        acionamentoManual == true ? app.esteira.duty_acionamento : app.esteira.duty, 
+        duty, 
         0
     );
 
 }
 void pararEsteira(){
     
-    digitalWrite(ESTEIRA_IN1, LOW);
-    digitalWrite(ESTEIRA_IN2, LOW);
+    digitalWrite(ESTEIRA_IN3, LOW);
+    digitalWrite(ESTEIRA_IN4, LOW);
 
     ledc_set_duty_and_update(
         app.esteira.channel.speed_mode, 
@@ -438,8 +484,8 @@ void pararEsteira(){
 
 /*=============MAGAZINE=============*/
 void moverMagazine(bool sentido = CW, bool acionamentoManual = false){
-    magazine.setMaxSpeed(app.magazine.velocidade);
-    magazine.setAcceleration(app.magazine.aceleracao);
+    magazine.setMaxSpeed(app.operation_mode == PADRAO ? app.magazine.velocidade : aluno.magazine.velocidade);
+    magazine.setAcceleration(app.operation_mode == PADRAO ? app.magazine.aceleracao : aluno.magazine.aceleracao);
     // app.status = MANUAL;
     magazine.move((int)(sentido == CW ? app.magazine.steps_per_rev : -app.magazine.steps_per_rev)/3);
     magazine.runToPosition();
@@ -454,15 +500,16 @@ void moverMagazinePara(uint8_t posicao){
     // if(posicao == app.magazine.position) return;
     // n = posicao - app.magazine.position;
     // if(n < 0) n += 3; // CW
-    magazine.setMaxSpeed(app.magazine.velocidade);
-    magazine.setAcceleration(app.magazine.aceleracao);
+    magazine.setMaxSpeed(app.operation_mode == PADRAO ? app.magazine.velocidade : aluno.magazine.velocidade);
+    magazine.setAcceleration(app.operation_mode == PADRAO ? app.magazine.aceleracao : aluno.magazine.aceleracao);
     magazine.move(n * (app.magazine.steps_per_rev/3));
     magazine.runToPosition();
     app.magazine.position = posicao;
 }
 void atualizaMagazine(bool acionmanetoManual = false){
-    magazine.setMaxSpeed(acionmanetoManual ? app.magazine.velocidade_acionamento : app.magazine.velocidade);
-    magazine.setAcceleration(app.magazine.aceleracao);
+    if(acionmanetoManual) magazine.setMaxSpeed(app.magazine.velocidade_acionamento);
+    else magazine.setMaxSpeed(app.operation_mode == PADRAO ? app.magazine.velocidade : aluno.magazine.velocidade);
+    magazine.setAcceleration(app.operation_mode == PADRAO ? app.magazine.aceleracao : aluno.magazine.aceleracao);
 }
 bool zerarMagazine(){
     magazine.setMaxSpeed(app.magazine.velocidade/3);
@@ -608,7 +655,7 @@ void keyEnter(){
         app.ihm.tela_atual = app.ihm.tela_atual * 10 + app.ihm.linha_atual;
 
     else if(app.ihm.tela_atual == MENU_ACIONAMENTOS && app.ihm.linha_atual == 0)
-        app.operation_mode = !app.operation_mode;
+        app.operation_mode < EXPERT ? app.operation_mode++ : app.operation_mode = PADRAO;
 
     else if(app.ihm.tela_atual == MENU_ESTEIRA || app.ihm.tela_atual == MENU_MAGAZINE){
         app.ihm.tela_atual = app.ihm.tela_atual / 10;
@@ -737,7 +784,7 @@ void monitoramento() {
     app.ihm.linha_max = 0; // Desabilita a seleção de linha
     lcd.setCursor(0,0);
     lcd.print("QTD|MODO OP: ");
-    app.operation_mode ? lcd.print("PADRAO ") : lcd.print("PROG.  ");
+    lcd.print(app.operation_mode_printable[app.operation_mode]);
     lcd.setCursor(0,1);
     lcd.print("R~");
     lcd.print(app.qtd_pecas[RED]);
@@ -752,7 +799,7 @@ void monitoramento() {
     lcd.print("B~");
     lcd.print(app.qtd_pecas[BLUE]);
     lcd.print("|PECAS/MIN: ");
-    lcd.print(digitalRead(MAGAZINE_ZERO_PIN));
+    lcd.print(digitalRead(KEY_UP_PIN));
     switch (app.magazine.position)
     {
     case RED:
@@ -826,7 +873,7 @@ void menuCreditos() {
     lcd.setCursor(0,2);
     lcd.print("    Theo V. Pires   ");
     lcd.setCursor(0,3);
-    lcd.print("    Denise Costa    ");
+    lcd.print("                    ");
 }
 void acionamentoEsteira() {
     app.ihm.linha_max = 0; // Desabilita a seleção de linha
@@ -1010,17 +1057,17 @@ void uartBegin(){
     };
 
     // Configura UART com as informações setadas acima
-    uart_param_config(UART_NUM_0, &uart_config);
+    uart_param_config(UART_NUM, &uart_config);
 
     // Configura os pinos como padrão para a UART0
-    uart_set_pin(UART_NUM_0, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    uart_set_pin(UART_NUM, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
     // Configura a instalação do driver para UART0
-    uart_driver_install(UART_NUM_0, BUF_SIZE * 2, BUF_SIZE * 2, 10, &uart_queue, 0);
+    uart_driver_install(UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 10, &uart_queue, 0);
 
     // Configura interrupção por padrão de caracter. Padrão '\n'(ASCII) '0x0a'(HEX) '10'(DEC)
     //uart_enable_pattern_det_intr(EX_UART_NUM, 0x0a, 3, 10000, 10, 10); // Função desatualizada
-    uart_enable_pattern_det_baud_intr(UART_NUM_1, 0x0a, 1, 9, 0, 0); 
+    uart_enable_pattern_det_baud_intr(UART_NUM, 0x0a, 1, 9, 0, 0); 
 
     // Cria a task no nucleo 0 com prioridade 1
     xTaskCreate(uart_event_task, "uart_event_task", 4096, NULL, 2, NULL);
@@ -1032,7 +1079,7 @@ void gpioBegin(){
         .mode         = GPIO_MODE_INPUT,        // Modo de operação do pino
         .pull_up_en   = GPIO_PULLUP_ENABLE,     // Habilita resistor de pull-up
         .pull_down_en = GPIO_PULLDOWN_DISABLE,  // Desabilita resistor de pull-down
-        .intr_type    = GPIO_INTR_ANYEDGE       // Tipo de interrupção
+        .intr_type    = GPIO_INTR_NEGEDGE       // Tipo de interrupção
     };
 
     gpio_config(&io_config);                    // Chama a função para configurar o GPIO
@@ -1049,7 +1096,6 @@ void gpioBegin(){
     }
 
 } // end gpioBegin
-
 
 /*===============JSON===============*/
 void responseOK(){
@@ -1069,6 +1115,18 @@ void responseError( uint8_t code, const char * message){
     JsonObject error = json_OUT.createNestedObject("error");
     error["code"] = code;
     error["message"] = message;
+    serializeJson(json_OUT, output, 200);
+    printf("%s\r\n", output);
+    free(output);
+}
+void sendSensorJson(){
+    char * output = (char *) malloc((sizeof(char) * 200));
+    StaticJsonDocument<200> json_OUT;
+    json_OUT["type"] = "sensor";
+    JsonArray rgb = json_OUT.createNestedArray("rgb");
+    rgb.add(app.tcs.rgb.value[RED]);
+    rgb.add(app.tcs.rgb.value[GREEN]);
+    rgb.add(app.tcs.rgb.value[BLUE]);
     serializeJson(json_OUT, output, 200);
     printf("%s\r\n", output);
     free(output);
@@ -1100,29 +1158,106 @@ void trataComandoRecebido(uint8_t * dt){
                 responseOK();
                 return;
             }
-            else if( ! strcmp(jsonType, "magazine")){
-                uint8_t position = json_IN["position"];
-                switch (position)
-                {
-                case RED:
-                    app.qtd_pecas[RED]++;
-                    moverMagazinePara(RED);
-                    break;
-                case GREEN:
-                    app.qtd_pecas[GREEN]++;
-                    moverMagazinePara(GREEN);
-                    break;
-                case BLUE:
-                    app.qtd_pecas[BLUE]++;
-                    moverMagazinePara(BLUE);
-                    break;               
-                default:
-                    break;
+            else if( ! strcmp(jsonType, "config")){
+                JsonObjectConst param = json_IN["param"];
+                if(param){
+                    app.operation_mode = param["mode"] | app.operation_mode;
+                    JsonObjectConst esteira = param["esteira"];
+                    if(esteira){
+                        aluno.esteira.duty = esteira["vel"] | aluno.esteira.duty;
+                        aluno.esteira.rampa_acel = esteira["acel"] | aluno.esteira.rampa_acel;
+                        aluno.esteira.sentido = esteira["sentido"];
+                        atualizaEsteira();
+                    }
+                    JsonObjectConst magazine = param["magazine"];
+                    if(magazine){
+                        aluno.magazine.velocidade = magazine["vel"] | aluno.magazine.velocidade;
+                        aluno.magazine.aceleracao = magazine["acel"] | aluno.magazine.aceleracao;
+                        atualizaMagazine();
+                    }
+                    JsonObjectConst sensor = param["sensor"];
+                    if(sensor){
+                        JsonArrayConst fd = sensor["fd"];
+                        JsonArrayConst fw = sensor["fw"];
+                        aluno.tcs.read_time = sensor["readTime"] | aluno.tcs.read_time;
+                        for(int i = 0; i < 3; i++){
+                            aluno.tcs.fd.value[i] = fd[i] > 0 ? fd[i] : aluno.tcs.fd.value[i];
+                            aluno.tcs.fw.value[i] = fw[i] > 0 ? fw[i] : aluno.tcs.fw.value[i];
+                        }
+                        tcs.setDarkCal(&aluno.tcs.fd);
+                        tcs.setWhiteCal(&aluno.tcs.fw);
+                        tcs.setSampling(aluno.tcs.read_time);
+                    } 
+                    responseOK();
                 }
+                else{
+                    responseError(98, "Parametros nao encontrados");
+                    return;
+                }
+            }
+            else if( ! strcmp(jsonType, "esteira")){
+                if(app.operation_mode == EXPERT){
+                    bool ativarEsteira = json_IN["ativa"];
+                    uint8_t sentido = json_IN["sentido"] | 2;
+                    if(sentido == CW || sentido == CCW) app.esteira.sentido = sentido;
+                    if(ativarEsteira) moverEsteira();
+                    else if(app.esteira.is_running) pararEsteira();
+                    responseOK();
+                }
+                else{
+                    responseError(97, "Comando nao permito para o modo de operacao atual");
+                    return;
+                }
+                
+            }
+            else if( ! strcmp(jsonType, "magazine")){
+                if(app.operation_mode == EXPERT){
+                    uint8_t position = json_IN["position"] | 10;
+                    switch (position)
+                    {
+                    case RED:
+                        app.qtd_pecas[RED]++;
+                        moverMagazinePara(RED);
+                        break;
+                    case GREEN:
+                        app.qtd_pecas[GREEN]++;
+                        moverMagazinePara(GREEN);
+                        break;
+                    case BLUE:
+                        app.qtd_pecas[BLUE]++;
+                        moverMagazinePara(BLUE);
+                        break;               
+                    default:
+                        responseError(96, "Parametro position invalido ou ausente");
+                        break;
+                    }
+                    responseOK();
+                }
+                else{
+                    responseError(97, "Comando nao permito para o modo de operacao atual");
+                    return;
+                }
+            }
+            else if( ! strcmp(jsonType, "start")){
+                if(app.operation_mode == BASICO){
+                    app.status = RUNNING;
+                    responseOK();
+                    return;
+                }
+                else{
+                    responseError(97, "Comando nao permito para o modo de operacao atual");
+                    return;
+                }
+            }
+            else if( ! strcmp(jsonType, "stop")){
+                pararEsteira();
+                app.status = STATE_OK;
+                responseOK();
+                return;
             }
         }
         else{
-            responseError(99, "Tipo de comando não reconhecido");
+            responseError(99, "Tipo de comando nao reconhecido");
             return;
         }
     }
@@ -1149,10 +1284,10 @@ static void uart_event_task(void *pvParameters){
             switch (event.type)
             {
             case UART_DATA:
-                len = uart_read_bytes(UART_NUM_0, data, BUF_SIZE, 200 / portTICK_RATE_MS);
+                len = uart_read_bytes(UART_NUM, data, BUF_SIZE, 200 / portTICK_RATE_MS);
                 if(len > 0){
                     data[len] = '\0';  // Trunca o buffer para trabalhar como uma string                   
-                    // printf("Dado recebido: %s\r\n", data);
+                    // printf("Dado recebido: %s\r\n", data); // DEBUG
                     if(data[len-1] == '\n' || data[len-1] == '\r' || data[len-1] == ' '){
                         data[len-1] = 0;
                         trataComandoRecebido(data);
@@ -1161,12 +1296,12 @@ static void uart_event_task(void *pvParameters){
                 break;
             case UART_FIFO_OVF:
                 ESP_LOGE(UART_TAG, "Evento: hw overflow");
-                uart_flush(UART_NUM_0);
+                uart_flush(UART_NUM);
                 break;
             case UART_BUFFER_FULL:
                 // Neste caso o dado provavelmente não estará completo, devemos tratá-lo para não perder info
                 ESP_LOGW(UART_TAG, "Evento: Dado > buffer");
-                uart_flush(UART_NUM_0);
+                uart_flush(UART_NUM);
                 break;
             default:
                 // Evento desconhecido
@@ -1184,7 +1319,7 @@ static void uart_event_task(void *pvParameters){
 
 static void principal_task(void *pvParameters){
     while(true){
-        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, app.status == RUNNING ? pdMS_TO_TICKS(500) : pdMS_TO_TICKS(1000))){
+        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, app.status == RUNNING ? pdMS_TO_TICKS(500) : pdMS_TO_TICKS(1000))){ // Aguarda por um evento de acionamento de botão da IHM
             switch (app.ihm.key_pressed)
             {
             case KEY_LEFT:
@@ -1207,10 +1342,11 @@ static void principal_task(void *pvParameters){
             }
         }
         
-        if(app.status == RUNNING){
-            if( ! app.esteira.is_running) 
-                moverEsteira();
-            tcs.read();
+        // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING
+        tcs.read();
+        
+        if(app.operation_mode != EXPERT && app.status == RUNNING){
+            if( ! app.esteira.is_running) moverEsteira();
             if(tcs.getColor() != app.tcs.last_color) {
                 switch (tcs.getColor())
                 {
@@ -1229,14 +1365,12 @@ static void principal_task(void *pvParameters){
                 default:
                     break;
                 }
+                app.tcs.last_color = tcs.getColor();
             }
-            app.tcs.last_color = tcs.getColor();
         }
-        else {
-            if(app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
-            tcs.read();
-        }
-        atualizaTela();
+        else if(app.operation_mode != EXPERT && app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
+        else if(app.operation_mode == EXPERT) sendSensorJson();
+        atualizaTela(); // Atualiza o display LCD
     }
     // Deleta a task após a sua conclusão
     vTaskDelete(NULL);
@@ -1244,15 +1378,17 @@ static void principal_task(void *pvParameters){
 
 /********************** SETUP **********************/
 void setup(void){
-    // SETUP AND TASK CREATE
+    // Configura Uart e GPIO
     uartBegin();
     gpioBegin();
 
+    // Inicializa e configura o sensor de cores
     tcs.begin();
     tcs.setSampling(app.tcs.read_time);
     tcs.setDarkCal(&app.tcs.fd);
     tcs.setWhiteCal(&app.tcs.fw);
 
+    // Inicializa o display LCD e cria os caracteres especiais
     lcd.init();
     lcd.createChar(ARROW_UP,   arrowUp  );
     lcd.createChar(ARROW_DOWN, arrowDown);
@@ -1263,24 +1399,30 @@ void setup(void){
     lcd.backlight();
     atualizaTela();
 
+    // Configura os timers e canais usados para o controle da esteira
     ledc_timer_config(&app.esteira.timer);
     ledc_channel_config(&app.esteira.channel);
     ledc_fade_func_install(0);
 
-    pinMode(ESTEIRA_IN1, OUTPUT);
-    pinMode(ESTEIRA_IN2, OUTPUT);
+    // Configura os pinos usados para o controle da esteira e magazine
+    pinMode(ESTEIRA_IN3, OUTPUT);
+    pinMode(ESTEIRA_IN4, OUTPUT);
     pinMode(MAGAZINE_ZERO_PIN, INPUT_PULLUP);
 
+    // Carrega as configuraçãoes do magazine para instancia da lib AccelStepper
     magazine.setMaxSpeed(app.magazine.velocidade);
     magazine.setAcceleration(app.magazine.aceleracao);
 
+    // Faz o home do magazine e testa para ver se ocorreu algum erro
     bool error = zerarMagazine();
     if(error) app.status = ERROR_1;
     else app.status = STATE_OK;
 
-    xTaskCreate(principal_task, "principal_task", 4096, NULL, 3, NULL); // Cria a task com prioridade 3
+    // Cria a task principal com prioridade 3
+    xTaskCreate(principal_task, "principal_task", 4096, NULL, 3, NULL); 
 }
 /********************** LOOP **********************/
 void loop(void){
+    // Bloqueia a task loop, todo o processamento ocorre nas demais tasks
     vTaskDelay(portMAX_DELAY);
 }
