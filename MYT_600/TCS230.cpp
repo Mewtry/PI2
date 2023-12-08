@@ -96,7 +96,7 @@ void TCS230::begin() {
             .intr_type     = GPIO_INTR_POSEDGE
         };
         ESP_ERROR_CHECK(gpio_config(&io_conf));
-        (void)gpio_install_isr_service(0); // ignore errors as it could be already installed
+        //(void)gpio_install_isr_service(); // ignore errors as it could be already installed
         ESP_ERROR_CHECK(gpio_isr_handler_add(_OUT, pulseCounterIntr, this));
         gpio_intr_disable(_OUT);
     }
@@ -151,10 +151,12 @@ void TCS230::setSampling(uint16_t t) {
 }
 
 void TCS230::setEnable(bool b) {
-    if(b)
+    if(b) {
         DUMPS("\nEnabling using");
-    else
+    }
+    else {
         DUMPS("\nDisabling using");
+    }
     
     if (_OE != NO_PIN) {
         DUMPS("OE");

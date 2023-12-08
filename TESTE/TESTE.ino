@@ -23,14 +23,15 @@ void setup() {
 
 void loop() {
 
-  // Verifica se há dados disponíveis na Serial2
+  // Verifica se há dados disponíveis na Serial
   if (Serial.available() > 0) {
-    // Lê o dado recebido na Serial2
+    // Lê o dado recebido na Serial
     char data = Serial.read();
     
     // Envia o dado recebido de volta para a Serial
     Serial2.write(data);
   }
+  delay(1000);
   // Verifica se há dados disponíveis na Serial2
   if (Serial2.available() > 0) {
     // Lê o dado recebido na Serial2

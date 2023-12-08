@@ -95,7 +95,7 @@ class TCS230 {
     void setDarkSensitive(uint8_t d);   // set the dark sensitive value
     void setWhiteSensitive(uint16_t d); // set the white sensitive value
 
-    // Methods for reading sensor data
+    // Methods for reading sensor data'
     void getRGB(colorData *rgb);        // get the rgb value of the current reading
     void getRaw(sensorData *d);         // get the raw data of the current reading
     uint8_t getRed(void);               // get the red value of the current reading
@@ -105,8 +105,8 @@ class TCS230 {
     uint32_t getRawGreen(void);         // get the raw green value of the current reading
     uint32_t getRawBlue(void);          // get the raw blue value of the current reading
     uint8_t getColor(void);             // get the color ID of the current reading
-    char *  getColorToString(void);     // get the color name of the current reading
     uint32_t readSingle(void);          // read of a single sensor value (ie, not rgb)
+    char *  getColorToString(void);     // get the color name of the current reading
     void read(void);                    // read of sensor data
     bool available(void);               // check if the sensor data is available
 };

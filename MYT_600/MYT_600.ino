@@ -59,11 +59,12 @@
 #define BUF_SIZE (1024)
 
 // BOTÕES DA IHM
+#define DEBOUNCING 250
 #define KEY_LEFT_PIN  GPIO_NUM_36
 #define KEY_RIGHT_PIN GPIO_NUM_39
 #define KEY_UP_PIN    GPIO_NUM_34
 #define KEY_DOWN_PIN  GPIO_NUM_35
-#define KEY_ENTER_PIN GPIO_NUM_32
+#define KEY_ENTER_PIN GPIO_NUM_33
 #define PIN_MASK (1ULL << KEY_LEFT_PIN) | (1ULL << KEY_RIGHT_PIN) | (1ULL << KEY_UP_PIN) | (1ULL << KEY_DOWN_PIN) | (1ULL << KEY_ENTER_PIN)
 
 /******************** ESTRUTURAS *******************/
@@ -166,6 +167,8 @@ typedef struct {
     uint8_t    linha_max;
     bool       linha_selecionada;
     uint32_t   key_pressed; // mudar para uint8_t ?
+    uint32_t   last_key_pressed;
+    uint32_t   last_time_key_pressed;
     gpio_num_t button_pins[8];
 } ihm_config_t;
 typedef struct {
@@ -211,7 +214,7 @@ static const char * TCS230_TAG = "TCS230";
 static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
-static const char * versao = "1.0.0";
+static const char * versao = "1.0.5";
 
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
@@ -255,20 +258,22 @@ app_config_t app = {
         .position       = 0
     },
     .tcs = {
-        .fd.value   = {4162, 3764, 5166},
-        .fw.value   = {50551, 46568, 60065},
+        .fd         = {12500, 11100, 14900},
+        .fw         = {115750, 110860, 153460},
         .read_time  = 100,
         .last_color = BLACK
     },
     .ihm = {
-        .tela_atual        = INICIALIZACAO,
-        .tela_anterior     = INICIALIZACAO,
-        .linha_atual       = 0,
-        .linha_min         = 0,
-        .linha_max         = 3,
-        .linha_selecionada = false,
-        .key_pressed       = KEY_NONE,
-        .button_pins       = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN}
+        .tela_atual            = INICIALIZACAO,
+        .tela_anterior         = INICIALIZACAO,
+        .linha_atual           = 0,
+        .linha_min             = 0,
+        .linha_max             = 3,
+        .linha_selecionada     = false,
+        .key_pressed           = KEY_NONE,
+        .last_key_pressed      = KEY_NONE,
+        .last_time_key_pressed = 0,
+        .button_pins           = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN}
     },
     .operation_mode   = PADRAO,
     .operation_mode_printable = {
@@ -400,8 +405,6 @@ static void IRAM_ATTR gpio_isr_handler(void *arg){
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueSendFromISR(gpio_event_queue, &gpio_num, NULL);
-    }else{
-        xQueueReset(gpio_event_queue);
     }
 }
 
@@ -763,6 +766,7 @@ void inicializacao() {
     delay(1000);
     lcd.clear();
     app.ihm.tela_atual = MONITORAMENTO;
+    // app.ihm.tela_atual = MENU_CAL_SENSOR;
     atualizaTela();
 }
 void menuPrincipal() {
@@ -826,7 +830,7 @@ void menuAcionamentos() {
     lcd.setCursor(0,0);
     lcd.print("  1.MODO:       ");
     lcd.setCursor(10,0);
-    app.operation_mode ? lcd.print("PADRAO") : lcd.print("PROG.");
+    lcd.print(app.operation_mode_printable[app.operation_mode]);
     lcd.setCursor(0,1);
     lcd.print("  2.CONTROLE ESTEIRA");
     lcd.setCursor(0,2);
@@ -919,6 +923,7 @@ void acionamentoMagazine() {
 }
 void detecSensor() {
     /* tcs.getRaw(main.tcs.raw)*/
+    tcs.read();
     tcs.getRaw(&app.tcs.raw);
     tcs.getRGB(&app.tcs.rgb);
 
@@ -985,7 +990,7 @@ void configEsteira() {
     lcd.print(app.esteira.rampa_acel); // 1000 a 9999
     lcd.setCursor(0,3);
     lcd.print("  Sentido  : ");
-    app.esteira.sentido ? lcd.print("CW ") : lcd.print("CCW");
+    app.esteira.sentido == CW ? lcd.print("CW ") : lcd.print("CCW");
     lcd.setCursor(0,app.ihm.linha_atual);
     lcd.print("~");
     if(app.ihm.linha_selecionada){
@@ -1070,25 +1075,25 @@ void uartBegin(){
     uart_enable_pattern_det_baud_intr(UART_NUM, 0x0a, 1, 9, 0, 0); 
 
     // Cria a task no nucleo 0 com prioridade 1
-    xTaskCreate(uart_event_task, "uart_event_task", 4096, NULL, 2, NULL);
+    xTaskCreate(uart_event_task, "uart_event_task", 4096, NULL, 4, NULL);
 
 } // end uart_init
 void gpioBegin(){
     gpio_config_t io_config = {                 // Configuração do pino de interrupção
         .pin_bit_mask = PIN_MASK,               // Máscara de seleção dos pinos
         .mode         = GPIO_MODE_INPUT,        // Modo de operação do pino
-        .pull_up_en   = GPIO_PULLUP_ENABLE,     // Habilita resistor de pull-up
+        .pull_up_en   = GPIO_PULLUP_DISABLE,     // Habilita resistor de pull-up
         .pull_down_en = GPIO_PULLDOWN_DISABLE,  // Desabilita resistor de pull-down
-        .intr_type    = GPIO_INTR_NEGEDGE       // Tipo de interrupção
+        .intr_type    = GPIO_INTR_NEGEDGE      // Tipo de interrupção
     };
 
     gpio_config(&io_config);                    // Chama a função para configurar o GPIO
 
     // Cria um fila de eventos para lidar com as interrupções do GPIO
-    gpio_event_queue = xQueueCreate(50, sizeof(uint32_t));
+    gpio_event_queue = xQueueCreate(10, sizeof(uint32_t));
 
     // Instala o manipulador de interrupção GPIO
-    gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
+    gpio_install_isr_service(ESP_INTR_FLAG_LEVEL2);
 
     // Configura o manipulador de interrupção GPIO
     for(int i = 0; i < 5; i++){
@@ -1121,6 +1126,8 @@ void responseError( uint8_t code, const char * message){
 }
 void sendSensorJson(){
     char * output = (char *) malloc((sizeof(char) * 200));
+    tcs.getRaw(&app.tcs.raw);
+    tcs.getRGB(&app.tcs.rgb);
     StaticJsonDocument<200> json_OUT;
     json_OUT["type"] = "sensor";
     JsonArray rgb = json_OUT.createNestedArray("rgb");
@@ -1279,7 +1286,7 @@ static void uart_event_task(void *pvParameters){
 
     while(1){
         // Primeiro aguardamos pela ocorrência de um evento e depois analisamos seu tipo
-        if (xQueueReceive(uart_queue, (void *) &event, (portTickType) portMAX_DELAY)){
+        if (xQueueReceive(uart_queue, (void *) &event, pdMS_TO_TICKS(100))){
             // Ocorreu um evento, então devemos analisar seu tipo e então finalizar o loop
             switch (event.type)
             {
@@ -1319,33 +1326,38 @@ static void uart_event_task(void *pvParameters){
 
 static void principal_task(void *pvParameters){
     while(true){
-        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, app.status == RUNNING ? pdMS_TO_TICKS(500) : pdMS_TO_TICKS(1000))){ // Aguarda por um evento de acionamento de botão da IHM
-            switch (app.ihm.key_pressed)
-            {
-            case KEY_LEFT:
-                keyLeft();
-                break;
-            case KEY_RIGHT:
-                keyRight();
-                break;
-            case KEY_UP:
-                keyUp();
-                break;
-            case KEY_DOWN:
-                keyDown();
-                break;
-            case KEY_ENTER:
-                keyEnter();
-                break;
-            default:
-                break;
+        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, app.status == RUNNING ? pdMS_TO_TICKS(250) : pdMS_TO_TICKS(500))){ // Aguarda por um evento de acionamento de botão da IHM
+
+            if( ! digitalRead(app.ihm.key_pressed) && 
+                (app.ihm.last_key_pressed != app.ihm.key_pressed || 
+                app.ihm.last_time_key_pressed + DEBOUNCING <= millis())){
+                switch (app.ihm.key_pressed)
+                {
+                case KEY_LEFT_PIN:
+                    keyLeft();
+                    break;
+                case KEY_RIGHT_PIN:
+                    keyRight();
+                    break;
+                case KEY_UP_PIN:
+                    keyUp();
+                    break;
+                case KEY_DOWN_PIN:
+                    keyDown();
+                    break;
+                case KEY_ENTER_PIN:
+                    keyEnter();
+                    break;
+                default:
+                    break;
+                }
+                app.ihm.last_key_pressed = app.ihm.key_pressed;
+                app.ihm.last_time_key_pressed = millis();
             }
         }
-        
-        // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING
-        tcs.read();
-        
+        // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING        
         if(app.operation_mode != EXPERT && app.status == RUNNING){
+            tcs.read();
             if( ! app.esteira.is_running) moverEsteira();
             if(tcs.getColor() != app.tcs.last_color) {
                 switch (tcs.getColor())
@@ -1369,13 +1381,30 @@ static void principal_task(void *pvParameters){
             }
         }
         else if(app.operation_mode != EXPERT && app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
-        else if(app.operation_mode == EXPERT) sendSensorJson();
+        else if(app.operation_mode == EXPERT) {
+            tcs.read();
+            sendSensorJson();
+        }
+
         atualizaTela(); // Atualiza o display LCD
     }
     // Deleta a task após a sua conclusão
     vTaskDelete(NULL);
 }
 
+// static void buttons_task(void *pvParameters){
+//     while(true){
+//         for(uint8_t i = 0; i<5; i++){
+//             if( ! digitalRead(app.ihm.button_pins[i]))
+//                 app.ihm.key_pressed = app.ihm.button_pins[i];
+//             else
+//                 app.ihm.key_pressed = KEY_NONE;
+//         }
+
+//         vTaskDelay(500 / portTICK_PERIOD_MS);
+//     }
+//     vTaskDelete(NULL);
+// }
 /********************** SETUP **********************/
 void setup(void){
     // Configura Uart e GPIO
