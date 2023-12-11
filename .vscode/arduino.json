@@ -1,5 +1,5 @@
 {
-    "sketch": "TESTE\\TESTE.ino",
+    "sketch": "MYT_600\\MYT_600.ino",
     "configuration": "FlashFreq=80,UploadSpeed=921600,DebugLevel=none,EraseFlash=none",
     "board": "esp32:esp32:esp32doit-devkit-v1",
     "port": "COM5",

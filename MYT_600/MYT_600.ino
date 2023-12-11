@@ -8,9 +8,10 @@
 /**************************************************************************/
 
 #include <Wire.h>
+#include "Preferences.h"
 #include <ArduinoJson.h>
 #include <AccelStepper.h>
-#include "LiquidCrystal_I2C.h"
+#include <LiquidCrystal_I2C.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
@@ -200,11 +201,14 @@ TCS230 tcs(
     TCS230_OE_PIN
 );
 
-// Instancia do display LCD
+// Instância do display LCD
 LiquidCrystal_I2C lcd(LCD_I2C_ADDR, 20, 4);
 
-// Instancia do motor de passo do magazine
+// Instância do motor de passo do magazine
 AccelStepper magazine(AccelStepper::DRIVER, MAGAZINE_PUL_PIN, MAGAZINE_DIR_PIN);
+
+// Instância da classe nvs ESP32
+Preferences nvs_esp;
 
 /**************** GLOBAL VARIABLES *****************/ 
 
@@ -214,7 +218,7 @@ static const char * TCS230_TAG = "TCS230";
 static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
-static const char * versao = "1.0.5";
+static const char * versao = "1.1.0";
 
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
@@ -300,40 +304,19 @@ app_config_t app = {
 };
 aluno_config_t aluno = {
     .esteira = {
-        .timer = {
-            .speed_mode      = LEDC_LOW_SPEED_MODE,
-            .duty_resolution = ESTEIRA_RESOLUTION,
-            .timer_num       = LEDC_TIMER_1,
-            .freq_hz         = ESTEIRA_FREQ,
-            .clk_cfg         = LEDC_AUTO_CLK
-        },
-        .channel = {
-            .gpio_num   = ESTEIRA_ENA,
-            .speed_mode = LEDC_LOW_SPEED_MODE,
-            .channel    = LEDC_CHANNEL_1,
-            .duty       = 0,
-            .hpoint     = 0
-        },
         .duty           = TOP,
-        .duty_max       = TOP,
         .velocidade     = 0,
         .rampa_acel     = 5000,
-        .rampa_acel_max = 9999,
-        .rampa_acel_min = 1000,
         .sentido        = CW,
-        .is_running     = false
     },
     .magazine = {
         .velocidade     = MAGAZINE_SPEED,
-        .velocidade_max = 1920,
         .aceleracao     = MAGAZINE_ACCEL,
-        .aceleracao_max = 4800,
-        .steps_per_rev  = MAGAZINE_STEPS_PER_REV,
         .position       = 0
     },
     .tcs = {
-        .fd        = {4162, 3764, 5166},
-        .fw        = {50551, 46568, 60065},
+        .fd         = {12500, 11100, 14900},
+        .fw         = {115750, 110860, 153460},
         .read_time = 100
     }
 };
@@ -395,7 +378,6 @@ uint8_t pow_2[8] = {
     0b00000,
     0b00000
 };
-
 
 /******************** INTERRUPTS ********************/
 
@@ -662,7 +644,8 @@ void keyEnter(){
 
     else if(app.ihm.tela_atual == MENU_ESTEIRA || app.ihm.tela_atual == MENU_MAGAZINE){
         app.ihm.tela_atual = app.ihm.tela_atual / 10;
-        pararEsteira();
+        if(app.ihm.tela_atual == MENU_ESTEIRA) pararEsteira();
+        else zerarMagazine();
     }
 
     else if(app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual == 3)
@@ -1051,6 +1034,20 @@ void configSensor() {
 }
 
 /*==============Begins==============*/
+void nvsBegin(){
+    nvs_esp.begin("app-config");
+
+    app.esteira.duty = nvs_esp.getUInt("duty", TOP);
+    app.esteira.rampa_acel = nvs_esp.getUInt("rampa", 2000);
+    app.esteira.sentido = nvs_esp.getBool("sentido", CCW);
+
+    app.magazine.velocidade = nvs_esp.getUInt("vel", 768);
+    app.magazine.aceleracao = nvs_esp.getUInt("acel", 1920);
+
+    app.tcs.fd.value[0] = nvs_esp.getInt("fd_R");
+    
+
+}
 void uartBegin(){
     // Cria a estrutura com dados de configuração da UART
     uart_config_t uart_config = {
@@ -1101,6 +1098,7 @@ void gpioBegin(){
     }
 
 } // end gpioBegin
+
 
 /*===============JSON===============*/
 void responseOK(){
@@ -1408,6 +1406,7 @@ static void principal_task(void *pvParameters){
 /********************** SETUP **********************/
 void setup(void){
     // Configura Uart e GPIO
+    nvsBegin();
     uartBegin();
     gpioBegin();
 
