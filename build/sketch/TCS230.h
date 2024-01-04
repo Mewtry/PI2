@@ -52,7 +52,7 @@ class TCS230 {
     uint8_t _S3;            // photodiode filter selection S3 pin
     uint8_t _OE;            // output enable pin
     gpio_num_t _OUT;        // output frequency pin
-    uint16_t _readTime;     // time of sampling in ms
+    uint32_t _readTime;     // time of sampling in ms
     uint8_t _freqSet;       // current frequency setting
     uint8_t _readState;     // state of class reader
     
@@ -88,11 +88,11 @@ class TCS230 {
     void setFilter(uint8_t f);          // set the photodiode filter
     void setFrequency(uint8_t f);       // set the frequency prescaler
     void setEnable(bool b);             // set the output enable
-    void setSampling(uint16_t t);       // set the sampling time
+    void setSampling(uint32_t t);       // set the sampling time
     void setDarkCal(sensorData *d);     // set the dark calibration data
-    void darkCalibration(void);         // perform the dark calibration
+    void darkCalibration(sensorData *d); // perform the dark calibration
     void setWhiteCal(sensorData *d);    // set the white calibration data
-    void whiteCalibration(void);        // perform the white calibration
+    void whiteCalibration(sensorData *d);// perform the white calibration
     void setDarkSensitive(uint8_t d);   // set the dark sensitive value
     void setWhiteSensitive(uint16_t d); // set the white sensitive value
 

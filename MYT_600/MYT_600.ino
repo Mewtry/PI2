@@ -157,7 +157,7 @@ typedef struct {
     sensorData fw;
     sensorData raw;
     colorData  rgb;
-    uint16_t   read_time;
+    uint32_t   read_time;
     uint8_t    last_color;
 } tcs_config_t;
 typedef struct {
@@ -218,14 +218,13 @@ static const char * TCS230_TAG = "TCS230";
 static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
-static const char * versao = "1.1.0";
+static const char * versao = "1.2.0";
 
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = NULL;
 
 // declaração das estruturas de app e aluno
-// FALTA GRAVAR E TRABALHAR COM ESSAS CONFIGURAÇÔES PELA EEPROM
 app_config_t app = {
     .esteira = {
         .timer = {
@@ -307,7 +306,7 @@ aluno_config_t aluno = {
         .duty           = TOP,
         .velocidade     = 0,
         .rampa_acel     = 5000,
-        .sentido        = CW,
+        .sentido        = CCW,
     },
     .magazine = {
         .velocidade     = MAGAZINE_SPEED,
@@ -529,7 +528,6 @@ void keyLeft(){
     }
 
     else if(app.ihm.tela_atual == MENU_MAGAZINE){
-        app.magazine.position > 0 ? app.magazine.position-- : app.magazine.position = 2;
         moverMagazine(CCW, true);
     }
 }
@@ -546,7 +544,6 @@ void keyRight(){
     }
     
     else if(app.ihm.tela_atual == MENU_MAGAZINE){
-        app.magazine.position < 2 ? app.magazine.position++ : app.magazine.position = 0;
         moverMagazine(CW, true);
     }
     
@@ -562,6 +559,7 @@ void keyUp(){
 
     else if(app.ihm.tela_atual == MENU_MAGAZINE){
         app.magazine.velocidade_acionamento < app.magazine.velocidade_max-6 ? app.magazine.velocidade_acionamento+=6 : app.magazine.velocidade_acionamento = app.magazine.velocidade_max;
+        
         atualizaMagazine(true);
     }
 
@@ -634,7 +632,18 @@ void keyDown(){
 void keyEnter(){
     if(app.ihm.linha_selecionada){
         app.ihm.linha_selecionada = false;
-        // passar o valor da linha para a variavel de controle
+        if(app.ihm.tela_atual == MENU_CAL_ESTEIRA){
+            if(app.ihm.linha_atual == 1) nvs_esp.putUInt("duty", app.esteira.duty);
+            else if(app.ihm.linha_atual == 2) nvs_esp.putUInt("rampa", app.esteira.rampa_acel);
+            else if(app.ihm.linha_atual == 3) nvs_esp.putBool("sentido", app.esteira.sentido);
+        } 
+        else if(app.ihm.tela_atual == MENU_CAL_MAGAZINE){
+            if(app.ihm.linha_atual == 1) nvs_esp.putUInt("vel", app.magazine.velocidade);
+            else if(app.ihm.linha_atual == 2) nvs_esp.putUInt("acel", app.magazine.aceleracao);
+        }
+        else if(app.ihm.tela_atual == MENU_CAL_SENSOR){
+            if(app.ihm.linha_atual == 3) nvs_esp.putUInt("read_time", app.tcs.read_time);
+        } 
     }
     else if(app.ihm.tela_atual == MENU_PRINCIPAL || (app.ihm.tela_atual == MENU_ACIONAMENTOS && app.ihm.linha_atual != 0) || (app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual != 3))
         app.ihm.tela_atual = app.ihm.tela_atual * 10 + app.ihm.linha_atual;
@@ -648,8 +657,26 @@ void keyEnter(){
         else zerarMagazine();
     }
 
-    else if(app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual == 3)
+    else if(app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual == 3){
+
+        nvs_esp.putUInt("duty", TOP);
+        nvs_esp.putUInt("rampa", 2000);
+        nvs_esp.putBool("sentido", CCW);
+
+        nvs_esp.putUInt("vel", 768);
+        nvs_esp.putUInt("acel", 1920);
+
+        nvs_esp.putUInt("read_time", 100);
+
+        nvs_esp.putInt("fw_R", 190000);
+        nvs_esp.putInt("fw_G", 180000);
+        nvs_esp.putInt("fw_B", 227000);
+
+        nvs_esp.putInt("fd_R", 13000);
+        nvs_esp.putInt("fd_G", 12000);
+        nvs_esp.putInt("fd_B", 16000);
         esp_restart();
+    }
 
     else if(app.ihm.tela_atual == MENU_CAL_ESTEIRA && app.ihm.linha_atual != 0)
         app.ihm.linha_selecionada = true;
@@ -658,11 +685,19 @@ void keyEnter(){
         app.ihm.linha_selecionada = true;
 
     else if(app.ihm.tela_atual == MENU_CAL_SENSOR){
-        if(app.ihm.linha_atual == 1)
-            tcs.whiteCalibration();
+        if(app.ihm.linha_atual == 1){
+            tcs.whiteCalibration(&app.tcs.fw);
+            nvs_esp.putInt("fw_R", app.tcs.fw.value[RED]);
+            nvs_esp.putInt("fw_G", app.tcs.fw.value[GREEN]);
+            nvs_esp.putInt("fw_B", app.tcs.fw.value[BLUE]);
+        }
             
-        else if(app.ihm.linha_atual == 2)
-            tcs.darkCalibration();
+        else if(app.ihm.linha_atual == 2){
+            tcs.darkCalibration(&app.tcs.fd);
+            nvs_esp.putInt("fd_R", app.tcs.fd.value[RED]);
+            nvs_esp.putInt("fd_G", app.tcs.fd.value[GREEN]);
+            nvs_esp.putInt("fd_B", app.tcs.fd.value[BLUE]);  
+        }
 
         else if(app.ihm.linha_atual == 3)
             app.ihm.linha_selecionada = true;
@@ -1044,9 +1079,15 @@ void nvsBegin(){
     app.magazine.velocidade = nvs_esp.getUInt("vel", 768);
     app.magazine.aceleracao = nvs_esp.getUInt("acel", 1920);
 
-    app.tcs.fd.value[0] = nvs_esp.getInt("fd_R");
-    
+    app.tcs.read_time = nvs_esp.getUInt("read_time", 100);
 
+    app.tcs.fw.value[0] = nvs_esp.getInt("fw_R", 190000);
+    app.tcs.fw.value[1] = nvs_esp.getInt("fw_G", 180000);
+    app.tcs.fw.value[2] = nvs_esp.getInt("fw_B", 227000);
+
+    app.tcs.fd.value[0] = nvs_esp.getInt("fd_R", 13000);
+    app.tcs.fd.value[1] = nvs_esp.getInt("fd_G", 12000);
+    app.tcs.fd.value[2] = nvs_esp.getInt("fd_B", 16000);
 }
 void uartBegin(){
     // Cria a estrutura com dados de configuração da UART
@@ -1171,7 +1212,7 @@ void trataComandoRecebido(uint8_t * dt){
                     if(esteira){
                         aluno.esteira.duty = esteira["vel"] | aluno.esteira.duty;
                         aluno.esteira.rampa_acel = esteira["acel"] | aluno.esteira.rampa_acel;
-                        aluno.esteira.sentido = esteira["sentido"];
+                        aluno.esteira.sentido = esteira["sentido"] | aluno.esteira.sentido;
                         atualizaEsteira();
                     }
                     JsonObjectConst magazine = param["magazine"];

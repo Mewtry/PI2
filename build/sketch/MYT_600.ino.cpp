@@ -159,7 +159,7 @@ typedef struct {
     sensorData fw;
     sensorData raw;
     colorData  rgb;
-    uint16_t   read_time;
+    uint32_t   read_time;
     uint8_t    last_color;
 } tcs_config_t;
 typedef struct {
@@ -220,14 +220,13 @@ static const char * TCS230_TAG = "TCS230";
 static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
-static const char * versao = "1.1.0";
+static const char * versao = "1.2.0";
 
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = NULL;
 
 // declaração das estruturas de app e aluno
-// FALTA GRAVAR E TRABALHAR COM ESSAS CONFIGURAÇÔES PELA EEPROM
 app_config_t app = {
     .esteira = {
         .timer = {
@@ -309,7 +308,7 @@ aluno_config_t aluno = {
         .duty           = TOP,
         .velocidade     = 0,
         .rampa_acel     = 5000,
-        .sentido        = CW,
+        .sentido        = CCW,
     },
     .magazine = {
         .velocidade     = MAGAZINE_SPEED,
@@ -381,77 +380,76 @@ uint8_t pow_2[8] = {
     0b00000
 };
 
-
 /******************** INTERRUPTS ********************/
 
 // Função de interrupção para eventos da UART
-#line 454 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 452 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void pararEsteira();
-#line 481 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 479 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void moverMagazinePara(uint8_t posicao);
-#line 500 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 498 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 bool zerarMagazine();
-#line 515 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 513 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void keyLeft();
-#line 537 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 534 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void keyRight();
-#line 555 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 551 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void keyUp();
-#line 596 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 593 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void keyDown();
-#line 635 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 632 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void keyEnter();
-#line 679 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 713 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void atualizaTela();
-#line 735 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 769 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void inicializacao();
-#line 756 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 790 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void menuPrincipal();
-#line 771 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 805 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void monitoramento();
-#line 810 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 844 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void menuAcionamentos();
-#line 827 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 861 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void menuProgAluno();
-#line 839 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 873 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void menuConfiguracao();
-#line 854 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 888 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void menuCreditos();
-#line 866 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 900 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void acionamentoEsteira();
-#line 887 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 921 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void acionamentoMagazine();
-#line 908 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 942 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void detecSensor();
-#line 960 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 994 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void configEsteira();
-#line 985 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1019 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void configMagazine();
-#line 1013 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1047 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void configSensor();
-#line 1038 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1072 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void nvsBegin();
-#line 1043 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1092 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void uartBegin();
-#line 1070 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1119 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void gpioBegin();
-#line 1096 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1145 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void responseOK();
-#line 1105 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1154 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void responseError( uint8_t code, const char * message);
-#line 1117 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1166 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void sendSensorJson();
-#line 1131 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1180 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void trataComandoRecebido(uint8_t * dt);
-#line 1269 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1318 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 static void uart_event_task(void *pvParameters);
-#line 1317 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1366 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 static void principal_task(void *pvParameters);
-#line 1399 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1448 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void setup(void);
-#line 1445 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1494 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 void loop(void);
-#line 386 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 384 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 static void IRAM_ATTR gpio_isr_handler(void *arg){
     if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE) {
 
@@ -599,7 +597,6 @@ void keyLeft(){
     }
 
     else if(app.ihm.tela_atual == MENU_MAGAZINE){
-        app.magazine.position > 0 ? app.magazine.position-- : app.magazine.position = 2;
         moverMagazine(CCW, true);
     }
 }
@@ -616,7 +613,6 @@ void keyRight(){
     }
     
     else if(app.ihm.tela_atual == MENU_MAGAZINE){
-        app.magazine.position < 2 ? app.magazine.position++ : app.magazine.position = 0;
         moverMagazine(CW, true);
     }
     
@@ -632,6 +628,7 @@ void keyUp(){
 
     else if(app.ihm.tela_atual == MENU_MAGAZINE){
         app.magazine.velocidade_acionamento < app.magazine.velocidade_max-6 ? app.magazine.velocidade_acionamento+=6 : app.magazine.velocidade_acionamento = app.magazine.velocidade_max;
+        
         atualizaMagazine(true);
     }
 
@@ -704,7 +701,18 @@ void keyDown(){
 void keyEnter(){
     if(app.ihm.linha_selecionada){
         app.ihm.linha_selecionada = false;
-        // passar o valor da linha para a variavel de controle
+        if(app.ihm.tela_atual == MENU_CAL_ESTEIRA){
+            if(app.ihm.linha_atual == 1) nvs_esp.putUInt("duty", app.esteira.duty);
+            else if(app.ihm.linha_atual == 2) nvs_esp.putUInt("rampa", app.esteira.rampa_acel);
+            else if(app.ihm.linha_atual == 3) nvs_esp.putBool("sentido", app.esteira.sentido);
+        } 
+        else if(app.ihm.tela_atual == MENU_CAL_MAGAZINE){
+            if(app.ihm.linha_atual == 1) nvs_esp.putUInt("vel", app.magazine.velocidade);
+            else if(app.ihm.linha_atual == 2) nvs_esp.putUInt("acel", app.magazine.aceleracao);
+        }
+        else if(app.ihm.tela_atual == MENU_CAL_SENSOR){
+            if(app.ihm.linha_atual == 3) nvs_esp.putUInt("read_time", app.tcs.read_time);
+        } 
     }
     else if(app.ihm.tela_atual == MENU_PRINCIPAL || (app.ihm.tela_atual == MENU_ACIONAMENTOS && app.ihm.linha_atual != 0) || (app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual != 3))
         app.ihm.tela_atual = app.ihm.tela_atual * 10 + app.ihm.linha_atual;
@@ -718,8 +726,26 @@ void keyEnter(){
         else zerarMagazine();
     }
 
-    else if(app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual == 3)
+    else if(app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual == 3){
+
+        nvs_esp.putUInt("duty", TOP);
+        nvs_esp.putUInt("rampa", 2000);
+        nvs_esp.putBool("sentido", CCW);
+
+        nvs_esp.putUInt("vel", 768);
+        nvs_esp.putUInt("acel", 1920);
+
+        nvs_esp.putUInt("read_time", 100);
+
+        nvs_esp.putInt("fw_R", 190000);
+        nvs_esp.putInt("fw_G", 180000);
+        nvs_esp.putInt("fw_B", 227000);
+
+        nvs_esp.putInt("fd_R", 13000);
+        nvs_esp.putInt("fd_G", 12000);
+        nvs_esp.putInt("fd_B", 16000);
         esp_restart();
+    }
 
     else if(app.ihm.tela_atual == MENU_CAL_ESTEIRA && app.ihm.linha_atual != 0)
         app.ihm.linha_selecionada = true;
@@ -728,11 +754,19 @@ void keyEnter(){
         app.ihm.linha_selecionada = true;
 
     else if(app.ihm.tela_atual == MENU_CAL_SENSOR){
-        if(app.ihm.linha_atual == 1)
-            tcs.whiteCalibration();
+        if(app.ihm.linha_atual == 1){
+            tcs.whiteCalibration(&app.tcs.fw);
+            nvs_esp.putInt("fw_R", app.tcs.fw.value[RED]);
+            nvs_esp.putInt("fw_G", app.tcs.fw.value[GREEN]);
+            nvs_esp.putInt("fw_B", app.tcs.fw.value[BLUE]);
+        }
             
-        else if(app.ihm.linha_atual == 2)
-            tcs.darkCalibration();
+        else if(app.ihm.linha_atual == 2){
+            tcs.darkCalibration(&app.tcs.fd);
+            nvs_esp.putInt("fd_R", app.tcs.fd.value[RED]);
+            nvs_esp.putInt("fd_G", app.tcs.fd.value[GREEN]);
+            nvs_esp.putInt("fd_B", app.tcs.fd.value[BLUE]);  
+        }
 
         else if(app.ihm.linha_atual == 3)
             app.ihm.linha_selecionada = true;
@@ -1107,7 +1141,22 @@ void configSensor() {
 void nvsBegin(){
     nvs_esp.begin("app-config");
 
-    
+    app.esteira.duty = nvs_esp.getUInt("duty", TOP);
+    app.esteira.rampa_acel = nvs_esp.getUInt("rampa", 2000);
+    app.esteira.sentido = nvs_esp.getBool("sentido", CCW);
+
+    app.magazine.velocidade = nvs_esp.getUInt("vel", 768);
+    app.magazine.aceleracao = nvs_esp.getUInt("acel", 1920);
+
+    app.tcs.read_time = nvs_esp.getUInt("read_time", 100);
+
+    app.tcs.fw.value[0] = nvs_esp.getInt("fw_R", 190000);
+    app.tcs.fw.value[1] = nvs_esp.getInt("fw_G", 180000);
+    app.tcs.fw.value[2] = nvs_esp.getInt("fw_B", 227000);
+
+    app.tcs.fd.value[0] = nvs_esp.getInt("fd_R", 13000);
+    app.tcs.fd.value[1] = nvs_esp.getInt("fd_G", 12000);
+    app.tcs.fd.value[2] = nvs_esp.getInt("fd_B", 16000);
 }
 void uartBegin(){
     // Cria a estrutura com dados de configuração da UART
@@ -1232,7 +1281,7 @@ void trataComandoRecebido(uint8_t * dt){
                     if(esteira){
                         aluno.esteira.duty = esteira["vel"] | aluno.esteira.duty;
                         aluno.esteira.rampa_acel = esteira["acel"] | aluno.esteira.rampa_acel;
-                        aluno.esteira.sentido = esteira["sentido"];
+                        aluno.esteira.sentido = esteira["sentido"] | aluno.esteira.sentido;
                         atualizaEsteira();
                     }
                     JsonObjectConst magazine = param["magazine"];

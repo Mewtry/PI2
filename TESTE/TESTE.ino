@@ -18,7 +18,7 @@ void setup() {
   Serial.println("Iniciando aluno...");
   Serial2.begin(115200, SERIAL_8N1, 16, 17); // RX TX
   delay(1000);
-  xTaskCreate(&pingTask, "pingTask", 2048, NULL, 5, NULL);
+  // xTaskCreate(&pingTask, "pingTask", 2048, NULL, 5, NULL);
 }
 
 void loop() {
@@ -31,7 +31,6 @@ void loop() {
     // Envia o dado recebido de volta para a Serial
     Serial2.write(data);
   }
-  delay(1000);
   // Verifica se há dados disponíveis na Serial2
   if (Serial2.available() > 0) {
     // Lê o dado recebido na Serial2

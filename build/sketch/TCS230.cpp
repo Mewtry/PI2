@@ -146,7 +146,7 @@ void TCS230::setFrequency(uint8_t f) {
     setFrequencyInternal(f);
 }
 
-void TCS230::setSampling(uint16_t t) {
+void TCS230::setSampling(uint32_t t) {
     if (_readTime > 0 && _readTime <= 1000)
         _readTime = t;
 }
@@ -180,10 +180,14 @@ void TCS230::setDarkCal(sensorData *d) {
     }
 }
 
-void TCS230::darkCalibration(void) {
+void TCS230::darkCalibration(sensorData *d) {
     DUMPS("\ndarkCalibration");
     read();
     setDarkCal(&_fo);
+    for (uint8_t i=0; i<RGB_SIZE; i++) {
+        DUMP(" ", _fo.value[i]);
+        d->value[i] = _fo.value[i];
+    }
 }
 
 void TCS230::setWhiteCal(sensorData *d) {
@@ -197,10 +201,14 @@ void TCS230::setWhiteCal(sensorData *d) {
     }
 }
 
-void TCS230::whiteCalibration(void) {
+void TCS230::whiteCalibration(sensorData *d) {
     DUMPS("\nwhiteCalibration");
     read();
     setWhiteCal(&_fo);
+    for (uint8_t i=0; i<RGB_SIZE; i++) {
+        DUMP(" ", _fo.value[i]);
+        d->value[i] = _fo.value[i];
+    }
 }
 
 // get the rgb value of the current reading
