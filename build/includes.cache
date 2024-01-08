@@ -31,16 +31,16 @@
   },
   {
     "Sourcefile": "C:\\workspace\\PI2\\build\\sketch\\MYT_600.ino.cpp",
+    "Include": "TCS230_ESP32.h",
+    "Includepath": "C:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\TCS230_ESP32\\src"
+  },
+  {
+    "Sourcefile": "C:\\workspace\\PI2\\build\\sketch\\MYT_600.ino.cpp",
     "Include": "LiquidCrystal_I2C.h",
     "Includepath": "C:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\LiquidCrystal_I2C"
   },
   {
     "Sourcefile": "C:\\workspace\\PI2\\build\\sketch\\MYT_600.ino.cpp",
-    "Include": "",
-    "Includepath": null
-  },
-  {
-    "Sourcefile": "C:\\workspace\\PI2\\build\\sketch\\TCS230.cpp",
     "Include": "",
     "Includepath": null
   },
@@ -61,6 +61,11 @@
   },
   {
     "Sourcefile": "C:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\AccelStepper\\src\\MultiStepper.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "C:\\Users\\theo-\\OneDrive\\Documents\\Arduino\\libraries\\TCS230_ESP32\\src\\TCS230_ESP32.cpp",
     "Include": "",
     "Includepath": null
   },

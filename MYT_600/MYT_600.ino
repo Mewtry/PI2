@@ -11,6 +11,7 @@
 #include "Preferences.h"
 #include <ArduinoJson.h>
 #include <AccelStepper.h>
+#include <TCS230_ESP32.h>
 #include <LiquidCrystal_I2C.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -20,7 +21,6 @@
 #include "driver/uart.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
-#include "TCS230.h"
 
 /********************* DEFINES *********************/
 
