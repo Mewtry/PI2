@@ -218,7 +218,7 @@ static const char * TCS230_TAG = "TCS230";
 static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
-static const char * versao = "1.2.0";
+static const char * versao = "1.3.0";
 
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
@@ -1363,13 +1363,16 @@ static void uart_event_task(void *pvParameters){
     vTaskDelete(NULL);
 } // end uart_event_task
 
-static void principal_task(void *pvParameters){
-    while(true){
-        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, app.status == RUNNING ? pdMS_TO_TICKS(250) : pdMS_TO_TICKS(500))){ // Aguarda por um evento de acionamento de botão da IHM
-
+static void ihm_event_task(void *pvParameters){
+   while(true){
+        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, portMAX_DELAY)){ // Aguarda por um evento de acionamento de botão da IHM
             if( ! digitalRead(app.ihm.key_pressed) && 
                 (app.ihm.last_key_pressed != app.ihm.key_pressed || 
                 app.ihm.last_time_key_pressed + DEBOUNCING <= millis())){
+
+                app.ihm.last_key_pressed = app.ihm.key_pressed;
+                app.ihm.last_time_key_pressed = millis();
+
                 switch (app.ihm.key_pressed)
                 {
                 case KEY_LEFT_PIN:
@@ -1390,10 +1393,15 @@ static void principal_task(void *pvParameters){
                 default:
                     break;
                 }
-                app.ihm.last_key_pressed = app.ihm.key_pressed;
-                app.ihm.last_time_key_pressed = millis();
             }
         }
+    }
+    // Deleta a task caso saia do loop
+    vTaskDelete(NULL);
+}
+
+static void principal_task(void *pvParameters){
+    while(true){
         // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING        
         if(app.operation_mode != EXPERT && app.status == RUNNING){
             tcs.read();
@@ -1426,8 +1434,10 @@ static void principal_task(void *pvParameters){
         }
 
         atualizaTela(); // Atualiza o display LCD
+        // Modula o tempo de atualização do display e leitura do sensor de cores
+        vTaskDelay((app.status == RUNNING ? 250 : 500) / portTICK_PERIOD_MS);
     }
-    // Deleta a task após a sua conclusão
+    // Deleta a task caso saia do loop
     vTaskDelete(NULL);
 }
 
@@ -1488,7 +1498,8 @@ void setup(void){
     else app.status = STATE_OK;
 
     // Cria a task principal com prioridade 3
-    xTaskCreate(principal_task, "principal_task", 4096, NULL, 3, NULL); 
+    xTaskCreate(ihm_event_task, "ihm_event_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL);
+    xTaskCreate(principal_task, "principal_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL); 
 }
 /********************** LOOP **********************/
 void loop(void){
