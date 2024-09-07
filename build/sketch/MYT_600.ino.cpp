@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#line 1 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 /**************************************************************************/
 /**
  * @file    MYT_600.ino
@@ -220,7 +220,7 @@ static const char * TCS230_TAG = "TCS230";
 static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
-static const char * versao = "1.2.0";
+static const char * versao = "1.3.0";
 
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
@@ -383,73 +383,75 @@ uint8_t pow_2[8] = {
 /******************** INTERRUPTS ********************/
 
 // Função de interrupção para eventos da UART
-#line 452 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 452 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void pararEsteira();
-#line 479 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 479 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void moverMagazinePara(uint8_t posicao);
-#line 498 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 498 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 bool zerarMagazine();
-#line 513 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 513 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void keyLeft();
-#line 534 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 534 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void keyRight();
-#line 551 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 551 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void keyUp();
-#line 593 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 593 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void keyDown();
-#line 632 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 632 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void keyEnter();
-#line 713 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 713 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void atualizaTela();
-#line 769 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 769 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void inicializacao();
-#line 790 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 790 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void menuPrincipal();
-#line 805 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 805 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void monitoramento();
-#line 844 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 844 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void menuAcionamentos();
-#line 861 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 861 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void menuProgAluno();
-#line 873 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 873 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void menuConfiguracao();
-#line 888 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 888 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void menuCreditos();
-#line 900 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 900 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void acionamentoEsteira();
-#line 921 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 921 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void acionamentoMagazine();
-#line 942 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 942 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void detecSensor();
-#line 994 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 994 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void configEsteira();
-#line 1019 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1019 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void configMagazine();
-#line 1047 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1047 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void configSensor();
-#line 1072 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1072 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void nvsBegin();
-#line 1092 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1092 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void uartBegin();
-#line 1119 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1119 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void gpioBegin();
-#line 1145 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1145 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void responseOK();
-#line 1154 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1154 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void responseError( uint8_t code, const char * message);
-#line 1166 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1166 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void sendSensorJson();
-#line 1180 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1180 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void trataComandoRecebido(uint8_t * dt);
-#line 1318 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1318 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 static void uart_event_task(void *pvParameters);
-#line 1366 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1366 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+static void ihm_event_task(void *pvParameters);
+#line 1403 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 static void principal_task(void *pvParameters);
-#line 1448 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1458 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void setup(void);
-#line 1494 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 1505 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void loop(void);
-#line 384 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+#line 384 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 static void IRAM_ATTR gpio_isr_handler(void *arg){
     if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE) {
 
@@ -1432,13 +1434,16 @@ static void uart_event_task(void *pvParameters){
     vTaskDelete(NULL);
 } // end uart_event_task
 
-static void principal_task(void *pvParameters){
-    while(true){
-        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, app.status == RUNNING ? pdMS_TO_TICKS(250) : pdMS_TO_TICKS(500))){ // Aguarda por um evento de acionamento de botão da IHM
-
+static void ihm_event_task(void *pvParameters){
+   while(true){
+        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, portMAX_DELAY)){ // Aguarda por um evento de acionamento de botão da IHM
             if( ! digitalRead(app.ihm.key_pressed) && 
                 (app.ihm.last_key_pressed != app.ihm.key_pressed || 
                 app.ihm.last_time_key_pressed + DEBOUNCING <= millis())){
+
+                app.ihm.last_key_pressed = app.ihm.key_pressed;
+                app.ihm.last_time_key_pressed = millis();
+
                 switch (app.ihm.key_pressed)
                 {
                 case KEY_LEFT_PIN:
@@ -1459,10 +1464,15 @@ static void principal_task(void *pvParameters){
                 default:
                     break;
                 }
-                app.ihm.last_key_pressed = app.ihm.key_pressed;
-                app.ihm.last_time_key_pressed = millis();
             }
         }
+    }
+    // Deleta a task caso saia do loop
+    vTaskDelete(NULL);
+}
+
+static void principal_task(void *pvParameters){
+    while(true){
         // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING        
         if(app.operation_mode != EXPERT && app.status == RUNNING){
             tcs.read();
@@ -1495,8 +1505,10 @@ static void principal_task(void *pvParameters){
         }
 
         atualizaTela(); // Atualiza o display LCD
+        // Modula o tempo de atualização do display e leitura do sensor de cores
+        vTaskDelay((app.status == RUNNING ? 250 : 500) / portTICK_PERIOD_MS);
     }
-    // Deleta a task após a sua conclusão
+    // Deleta a task caso saia do loop
     vTaskDelete(NULL);
 }
 
@@ -1557,7 +1569,8 @@ void setup(void){
     else app.status = STATE_OK;
 
     // Cria a task principal com prioridade 3
-    xTaskCreate(principal_task, "principal_task", 4096, NULL, 3, NULL); 
+    xTaskCreate(ihm_event_task, "ihm_event_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL);
+    xTaskCreate(principal_task, "principal_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL); 
 }
 /********************** LOOP **********************/
 void loop(void){

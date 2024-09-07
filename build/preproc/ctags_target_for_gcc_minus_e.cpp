@@ -1,4 +1,4 @@
-# 1 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 /**************************************************************************/
 /**
 
@@ -11,28 +11,28 @@
  * @see     www.linkedin.com/in/theo-pires-a34b33183/
 
 */
-# 8 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 8 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 /**************************************************************************/
 
-# 11 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
-# 12 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
-# 13 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
-# 14 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
-# 15 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
-# 16 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
-# 17 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
-# 18 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
-# 19 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
+# 11 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 12 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 13 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 14 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 15 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 16 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 17 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 18 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 19 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
 
-# 21 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
-# 22 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
+# 21 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 22 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
 
-# 24 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
+# 24 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
 
 /********************* DEFINES *********************/
 
 // MOTOR CC DA ESTEIRA
-# 36 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 36 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 // MOTOR DE PASSO DO MAGAZINE
 
 
@@ -42,7 +42,7 @@
 
 
 // SENSOR DE COR
-# 53 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 53 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 // DISPLAY LCD I2C
 
 
@@ -53,7 +53,7 @@
 
 
 // BOTÕES DA IHM
-# 71 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 71 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 /******************** ESTRUTURAS *******************/
 
 // Enumerações
@@ -204,14 +204,14 @@ static const char * TCS230_TAG = "TCS230";
 static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
-static const char * versao = "1.2.0";
+static const char * versao = "1.3.0";
 
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = 
-# 225 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 225 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                        __null
-# 225 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 225 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                            ;
 
 // declaração das estruturas de app e aluno
@@ -376,9 +376,9 @@ static void __attribute__((section(".iram1" "." "28"))) gpio_isr_handler(void *a
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueGenericSendFromISR( ( gpio_event_queue ), ( &gpio_num ), ( 
-# 388 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 388 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
        __null 
-# 388 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 388 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
        ), ( ( BaseType_t ) 0 ) );
     }
 }
@@ -1108,13 +1108,13 @@ void uartBegin(){
 
     // Cria a task no nucleo 0 com prioridade 1
     xTaskCreate(uart_event_task, "uart_event_task", 4096, 
-# 1116 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1116 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                          __null
-# 1116 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1116 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                              , 4, 
-# 1116 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1116 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                   __null
-# 1116 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1116 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                       );
 
 } // end uart_init
@@ -1328,18 +1328,18 @@ static void uart_event_task(void *pvParameters){
     while(1){
         // Primeiro aguardamos pela ocorrência de um evento e depois analisamos seu tipo
         if (xQueueReceive(uart_queue, (void *) &event, ( ( TickType_t ) ( ( ( TickType_t ) ( 100 ) * ( TickType_t ) ( 
-# 1328 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1328 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                       1000 
-# 1328 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1328 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                       ) ) / ( TickType_t ) 1000U ) ))){
             // Ocorreu um evento, então devemos analisar seu tipo e então finalizar o loop
             switch (event.type)
             {
             case UART_DATA:
                 len = uart_read_bytes((0) /*!< UART port 0 */, data, (1024), 200 / ( ( TickType_t ) 1000 / ( 
-# 1333 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1333 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                      1000 
-# 1333 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1333 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                      ) ));
                 if(len > 0){
                     data[len] = '\0'; // Trunca o buffer para trabalhar como uma string                   
@@ -1369,33 +1369,28 @@ static void uart_event_task(void *pvParameters){
     // Desacola a memória dinâmica criada na task
     free(data);
     data = 
-# 1361 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1361 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
           __null
-# 1361 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1361 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
               ;
     // Deleta a task após a sua conclusão
     vTaskDelete(
-# 1363 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1363 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1363 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1363 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                    );
 } // end uart_event_task
 
-static void principal_task(void *pvParameters){
-    while(true){
-        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, app.status == RUNNING ? ( ( TickType_t ) ( ( ( TickType_t ) ( 250 ) * ( TickType_t ) ( 
-# 1368 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
-                                                                                        1000 
-# 1368 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
-                                                                                        ) ) / ( TickType_t ) 1000U ) ) : ( ( TickType_t ) ( ( ( TickType_t ) ( 500 ) * ( TickType_t ) ( 
-# 1368 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
-                                                                                                             1000 
-# 1368 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
-                                                                                                             ) ) / ( TickType_t ) 1000U ) ))){ // Aguarda por um evento de acionamento de botão da IHM
-
+static void ihm_event_task(void *pvParameters){
+   while(true){
+        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, ( TickType_t ) 0xffffffffUL)){ // Aguarda por um evento de acionamento de botão da IHM
             if( ! digitalRead(app.ihm.key_pressed) &&
                 (app.ihm.last_key_pressed != app.ihm.key_pressed ||
                 app.ihm.last_time_key_pressed + 250 <= millis())){
+
+                app.ihm.last_key_pressed = app.ihm.key_pressed;
+                app.ihm.last_time_key_pressed = millis();
+
                 switch (app.ihm.key_pressed)
                 {
                 case GPIO_NUM_36:
@@ -1416,10 +1411,19 @@ static void principal_task(void *pvParameters){
                 default:
                     break;
                 }
-                app.ihm.last_key_pressed = app.ihm.key_pressed;
-                app.ihm.last_time_key_pressed = millis();
             }
         }
+    }
+    // Deleta a task caso saia do loop
+    vTaskDelete(
+# 1400 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+               __null
+# 1400 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+                   );
+}
+
+static void principal_task(void *pvParameters){
+    while(true){
         // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING        
         if(app.operation_mode != EXPERT && app.status == RUNNING){
             tcs.read();
@@ -1452,12 +1456,18 @@ static void principal_task(void *pvParameters){
         }
 
         atualizaTela(); // Atualiza o display LCD
+        // Modula o tempo de atualização do display e leitura do sensor de cores
+        vTaskDelay((app.status == RUNNING ? 250 : 500) / ( ( TickType_t ) 1000 / ( 
+# 1438 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                                        1000 
+# 1438 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+                                                        ) ));
     }
-    // Deleta a task após a sua conclusão
+    // Deleta a task caso saia do loop
     vTaskDelete(
-# 1431 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1441 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1431 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+# 1441 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                    );
 }
 
@@ -1518,15 +1528,24 @@ void setup(void){
     else app.status = STATE_OK;
 
     // Cria a task principal com prioridade 3
-    xTaskCreate(principal_task, "principal_task", 4096, 
-# 1491 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
-                                                       __null
-# 1491 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
-                                                           , 3, 
-# 1491 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
-                                                                __null
-# 1491 "C:\\workspace\\PI2\\MYT_600\\MYT_600.ino"
-                                                                    );
+    xTaskCreate(ihm_event_task, "ihm_event_task", (768 + ( 0 + 0 + 0 + 60 )) * 3, 
+# 1501 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                                                               __null
+# 1501 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+                                                                                   , 3, 
+# 1501 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                                                                        __null
+# 1501 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+                                                                                            );
+    xTaskCreate(principal_task, "principal_task", (768 + ( 0 + 0 + 0 + 60 )) * 3, 
+# 1502 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                                                               __null
+# 1502 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+                                                                                   , 3, 
+# 1502 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                                                                        __null
+# 1502 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+                                                                                            );
 }
 /********************** LOOP **********************/
 void loop(void){
