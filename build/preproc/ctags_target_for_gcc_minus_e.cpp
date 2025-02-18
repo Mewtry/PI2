@@ -1,38 +1,36 @@
-# 1 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 /**************************************************************************/
 /**
 
  * @file    MYT_600.ino
 
- * @author  Theo Pires
+ * @author  Theo Pires, Yasmin Georgetti
 
  * @date    26/08/2023
 
- * @see     www.linkedin.com/in/theo-pires-a34b33183/
-
 */
-# 8 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 7 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 /**************************************************************************/
 
-# 11 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 12 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 13 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 14 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 15 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 16 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 17 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 18 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 19 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 10 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
+# 11 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
+# 12 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
+# 13 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
+# 14 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
+# 15 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
+# 16 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
+# 17 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
+# 18 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
 
-# 21 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
-# 22 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 20 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
+# 21 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
 
-# 24 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 2
+# 23 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 2
 
 /********************* DEFINES *********************/
 
 // MOTOR CC DA ESTEIRA
-# 36 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 35 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 // MOTOR DE PASSO DO MAGAZINE
 
 
@@ -42,7 +40,15 @@
 
 
 // SENSOR DE COR
-# 53 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 52 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+// SENSOR ULTRASSÔNICO
+
+
+
+
+// SENSOR INDUTIVO 
+
+
 // DISPLAY LCD I2C
 
 
@@ -53,7 +59,7 @@
 
 
 // BOTÕES DA IHM
-# 71 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 78 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
 /******************** ESTRUTURAS *******************/
 
 // Enumerações
@@ -70,6 +76,8 @@ enum telas_ihm {
             MENU_CAL_ESTEIRA = 120,
             MENU_CAL_MAGAZINE = 121,
             MENU_CAL_SENSOR = 122,
+            //  MODO SENSOR
+                MENU_CAL_SENSOR_COR = 1221,
          // RESTAURAR CONFIG
         MENU_CREDITOS = 13,
     MONITORAMENTO = 2
@@ -108,10 +116,19 @@ enum status {
     ERROR_8,
     ERROR_9
 };
-enum mode {
+enum operation_mode {
     PADRAO,
     BASICO,
     EXPERT
+};
+enum sensor_mode {
+    COR,
+    ALTURA,
+    MATERIAL
+};
+enum sensor_indutivo {
+    METAL,
+    NOT_METAL
 };
 
 // Estruturas
@@ -147,7 +164,14 @@ typedef struct {
     uint8_t last_color;
 } tcs_config_t;
 typedef struct {
-    uint8_t tela_atual;
+    float distance;
+    uint32_t duration;
+} hcsr_config_t;
+typedef struct {
+    bool state;
+} indutivo_config_t;
+typedef struct {
+    uint16_t tela_atual;
     uint8_t tela_anterior;
     uint8_t linha_atual;
     uint8_t linha_min;
@@ -162,9 +186,13 @@ typedef struct {
     esteira_config_t esteira;
     magazine_config_t magazine;
     tcs_config_t tcs;
+    hcsr_config_t hcsr;
+    indutivo_config_t indutivo;
     ihm_config_t ihm;
     uint8_t operation_mode;
+    uint8_t sensor_mode;
     char operation_mode_printable[3][8];
+    char sensor_mode_printable[3][9];
     uint8_t status;
     char status_printable[12][8];
     uint8_t qtd_pecas[3];
@@ -204,14 +232,14 @@ static const char * TCS230_TAG = "TCS230";
 static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
-static const char * versao = "1.3.0";
+static const char * versao = "1.4.0";
 
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = 
-# 225 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 254 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                        __null
-# 225 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 254 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                                            ;
 
 // declaração das estruturas de app e aluno
@@ -256,6 +284,13 @@ app_config_t app = {
         .read_time = 100,
         .last_color = BLACK
     },
+    .hcsr = {
+        .distance = 0,
+        .duration = 0
+    },
+    .indutivo = {
+        .state = NOT_METAL
+    },
     .ihm = {
         .tela_atual = INICIALIZACAO,
         .tela_anterior = INICIALIZACAO,
@@ -269,10 +304,16 @@ app_config_t app = {
         .button_pins = {GPIO_NUM_36, GPIO_NUM_39, GPIO_NUM_34, GPIO_NUM_35, GPIO_NUM_33}
     },
     .operation_mode = PADRAO,
+    .sensor_mode = COR,
     .operation_mode_printable = {
         "PADRAO ",
         "BASICO ",
         "EXPERT "
+    },
+    .sensor_mode_printable = {
+        "COR     ",
+        "ALTURA  ",
+        "MATERIAL"
     },
     .status = STATE_OK,
     .status_printable = {
@@ -371,14 +412,14 @@ uint8_t pow_2[8] = {
 /******************** INTERRUPTS ********************/
 
 // Função de interrupção para eventos da UART
-static void __attribute__((section(".iram1" "." "28"))) gpio_isr_handler(void *arg){
+static void __attribute__((section(".iram1" "." "0"))) gpio_isr_handler(void *arg){
     if(xQueueIsQueueFullFromISR(gpio_event_queue) == ( ( BaseType_t ) 0 )) {
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueGenericSendFromISR( ( gpio_event_queue ), ( &gpio_num ), ( 
-# 388 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 430 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
        __null 
-# 388 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 430 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
        ), ( ( BaseType_t ) 0 ) );
     }
 }
@@ -635,11 +676,16 @@ void keyEnter(){
             if(app.ihm.linha_atual == 1) nvs_esp.putUInt("vel", app.magazine.velocidade);
             else if(app.ihm.linha_atual == 2) nvs_esp.putUInt("acel", app.magazine.aceleracao);
         }
-        else if(app.ihm.tela_atual == MENU_CAL_SENSOR){
+        else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_atual == 0)
+            app.sensor_mode < MATERIAL ? app.sensor_mode++ : app.sensor_mode == COR;
+        else if(app.ihm.tela_atual == MENU_CAL_SENSOR_COR){
             if(app.ihm.linha_atual == 3) nvs_esp.putUInt("read_time", app.tcs.read_time);
         }
     }
-    else if(app.ihm.tela_atual == MENU_PRINCIPAL || (app.ihm.tela_atual == MENU_ACIONAMENTOS && app.ihm.linha_atual != 0) || (app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual != 3))
+    else if(app.ihm.tela_atual == MENU_PRINCIPAL ||
+           (app.ihm.tela_atual == MENU_ACIONAMENTOS && app.ihm.linha_atual != 0) ||
+           (app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual != 3) ||
+           (app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_atual == 1))
         app.ihm.tela_atual = app.ihm.tela_atual * 10 + app.ihm.linha_atual;
 
     else if(app.ihm.tela_atual == MENU_ACIONAMENTOS && app.ihm.linha_atual == 0)
@@ -678,7 +724,7 @@ void keyEnter(){
     else if(app.ihm.tela_atual == MENU_CAL_MAGAZINE && app.ihm.linha_atual != 0)
         app.ihm.linha_selecionada = true;
 
-    else if(app.ihm.tela_atual == MENU_CAL_SENSOR){
+    else if(app.ihm.tela_atual == MENU_CAL_SENSOR_COR){
         if(app.ihm.linha_atual == 1){
             tcs.whiteCalibration(&app.tcs.fw);
             nvs_esp.putInt("fw_R", app.tcs.fw.value[RED]);
@@ -753,7 +799,10 @@ void atualizaTela() {
         configMagazine();
         break;
     case MENU_CAL_SENSOR:
-        configSensor();
+        configSensores();
+        break;
+    case MENU_CAL_SENSOR_COR:
+        configSensorCor();
         break;
     default:
         menuPrincipal();
@@ -873,7 +922,7 @@ void menuConfiguracao() {
     lcd.setCursor(0,1);
     lcd.print("  2.MAGAZINE        ");
     lcd.setCursor(0,2);
-    lcd.print("  3.SENSOR TCS230   ");
+    lcd.print("  3.SENSORES        ");
     lcd.setCursor(0,3);
     lcd.print("  4.RESTAURAR CONFIG");
     lcd.setCursor(0,app.ihm.linha_atual);
@@ -1038,7 +1087,20 @@ void configMagazine() {
         lcd.print("#");
     }
 }
-void configSensor() {
+void configSensores() {
+    app.ihm.linha_min = 0;
+    app.ihm.linha_max = 1;
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("  1.MODO:         ");
+    lcd.setCursor(10,0);
+    lcd.print(app.sensor_mode_printable[app.sensor_mode]);
+    lcd.setCursor(0,1);
+    lcd.print("  2.CONTROLE ESTEIRA");
+    lcd.setCursor(0,app.ihm.linha_atual);
+    lcd.print("~");
+}
+void configSensorCor() {
     if(app.ihm.linha_atual == 0)
         app.ihm.linha_atual = 1;
     app.ihm.linha_min = 1;
@@ -1094,27 +1156,27 @@ void uartBegin(){
     };
 
     // Configura UART com as informações setadas acima
-    uart_param_config((0) /*!< UART port 0 */, &uart_config);
+    uart_param_config(UART_NUM_0, &uart_config);
 
     // Configura os pinos como padrão para a UART0
-    uart_set_pin((0) /*!< UART port 0 */, (-1), (-1), (-1), (-1));
+    uart_set_pin(UART_NUM_0, (-1), (-1), (-1), (-1));
 
     // Configura a instalação do driver para UART0
-    uart_driver_install((0) /*!< UART port 0 */, (1024) * 2, (1024) * 2, 10, &uart_queue, 0);
+    uart_driver_install(UART_NUM_0, (1024) * 2, (1024) * 2, 10, &uart_queue, 0);
 
     // Configura interrupção por padrão de caracter. Padrão '\n'(ASCII) '0x0a'(HEX) '10'(DEC)
     //uart_enable_pattern_det_intr(EX_UART_NUM, 0x0a, 3, 10000, 10, 10); // Função desatualizada
-    uart_enable_pattern_det_baud_intr((0) /*!< UART port 0 */, 0x0a, 1, 9, 0, 0);
+    uart_enable_pattern_det_baud_intr(UART_NUM_0, 0x0a, 1, 9, 0, 0);
 
     // Cria a task no nucleo 0 com prioridade 1
     xTaskCreate(uart_event_task, "uart_event_task", 4096, 
-# 1116 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1179 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                          __null
-# 1116 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1179 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                                                              , 4, 
-# 1116 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1179 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                   __null
-# 1116 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1179 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                                                                       );
 
 } // end uart_init
@@ -1139,6 +1201,14 @@ void gpioBegin(){
     for(int i = 0; i < 5; i++){
         gpio_isr_handler_add(app.ihm.button_pins[i], gpio_isr_handler, (void *) app.ihm.button_pins[i]);
     }
+
+    // Configura os pinos do sensor ultrassônico
+    gpio_set_direction(GPIO_NUM_4 /* Trigger */, GPIO_MODE_OUTPUT);
+    gpio_set_direction(GPIO_NUM_2 /* Echo*/, GPIO_MODE_INPUT);
+
+    // Configura o pino do sensor indutivo como entrada com pullUp
+    gpio_set_direction(GPIO_NUM_33 /* Indutivo*/, GPIO_MODE_INPUT);
+    gpio_set_pull_mode(GPIO_NUM_33 /* Indutivo*/, GPIO_PULLUP_ONLY);
 
 } // end gpioBegin
 
@@ -1327,20 +1397,20 @@ static void uart_event_task(void *pvParameters){
 
     while(1){
         // Primeiro aguardamos pela ocorrência de um evento e depois analisamos seu tipo
-        if (xQueueReceive(uart_queue, (void *) &event, ( ( TickType_t ) ( ( ( TickType_t ) ( 100 ) * ( TickType_t ) ( 
-# 1328 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+        if (xQueueReceive(uart_queue, (void *) &event, ( ( TickType_t ) ( ( ( TickType_t ) ( 100 ) * ( TickType_t ) 
+# 1399 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3
                                                       1000 
-# 1328 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
-                                                      ) ) / ( TickType_t ) 1000U ) ))){
+# 1399 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+                                                      ) / ( TickType_t ) 1000U ) ))){
             // Ocorreu um evento, então devemos analisar seu tipo e então finalizar o loop
             switch (event.type)
             {
             case UART_DATA:
-                len = uart_read_bytes((0) /*!< UART port 0 */, data, (1024), 200 / ( ( TickType_t ) 1000 / ( 
-# 1333 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                len = uart_read_bytes(UART_NUM_0, data, (1024), 200 / ( ( TickType_t ) 1000 / 
+# 1404 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3
                                                                      1000 
-# 1333 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
-                                                                     ) ));
+# 1404 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+                                                                     ));
                 if(len > 0){
                     data[len] = '\0'; // Trunca o buffer para trabalhar como uma string                   
                     // printf("Dado recebido: %s\r\n", data); // DEBUG
@@ -1351,17 +1421,17 @@ static void uart_event_task(void *pvParameters){
                 }
                 break;
             case UART_FIFO_OVF:
-                do {} while(0);
-                uart_flush((0) /*!< UART port 0 */);
+                do { } while (0);
+                uart_flush(UART_NUM_0);
                 break;
             case UART_BUFFER_FULL:
                 // Neste caso o dado provavelmente não estará completo, devemos tratá-lo para não perder info
-                do {} while(0);
-                uart_flush((0) /*!< UART port 0 */);
+                do { } while (0);
+                uart_flush(UART_NUM_0);
                 break;
             default:
                 // Evento desconhecido
-                do {} while(0);
+                do { } while (0);
                 break;
             }
         }
@@ -1369,15 +1439,15 @@ static void uart_event_task(void *pvParameters){
     // Desacola a memória dinâmica criada na task
     free(data);
     data = 
-# 1361 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1432 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
           __null
-# 1361 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1432 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
               ;
     // Deleta a task após a sua conclusão
     vTaskDelete(
-# 1363 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1434 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1363 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1434 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                    );
 } // end uart_event_task
 
@@ -1416,9 +1486,9 @@ static void ihm_event_task(void *pvParameters){
     }
     // Deleta a task caso saia do loop
     vTaskDelete(
-# 1400 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1471 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1400 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1471 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                    );
 }
 
@@ -1426,48 +1496,76 @@ static void principal_task(void *pvParameters){
     while(true){
         // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING        
         if(app.operation_mode != EXPERT && app.status == RUNNING){
-            tcs.read();
-            if( ! app.esteira.is_running) moverEsteira();
-            if(tcs.getColor() != app.tcs.last_color) {
-                switch (tcs.getColor())
-                {
-                case RED:
-                    app.qtd_pecas[RED]++;
-                    moverMagazinePara(RED);
-                    break;
-                case GREEN:
-                    app.qtd_pecas[GREEN]++;
-                    moverMagazinePara(GREEN);
-                    break;
-                case BLUE:
-                    app.qtd_pecas[BLUE]++;
-                    moverMagazinePara(BLUE);
-                    break;
-                default:
-                    break;
+            if(app.sensor_mode == COR){
+                tcs.read();
+                if( ! app.esteira.is_running) moverEsteira();
+                if(tcs.getColor() != app.tcs.last_color) {
+                    switch (tcs.getColor())
+                    {
+                    case RED:
+                        app.qtd_pecas[RED]++;
+                        moverMagazinePara(RED);
+                        break;
+                    case GREEN:
+                        app.qtd_pecas[GREEN]++;
+                        moverMagazinePara(GREEN);
+                        break;
+                    case BLUE:
+                        app.qtd_pecas[BLUE]++;
+                        moverMagazinePara(BLUE);
+                        break;
+                    default:
+                        break;
+                    }
+                    app.tcs.last_color = tcs.getColor();
                 }
-                app.tcs.last_color = tcs.getColor();
+            }
+            else if(app.sensor_mode == ALTURA){
+                gpio_set_level(GPIO_NUM_4 /* Trigger */, 0x0);
+                delayMicroseconds(1);
+                gpio_set_level(GPIO_NUM_4 /* Trigger */, 0x1);
+                delayMicroseconds(10);
+                gpio_set_level(GPIO_NUM_4 /* Trigger */, 0x0);
+                app.hcsr.duration == pulseIn(GPIO_NUM_2 /* Echo*/, 0x1);
+                app.hcsr.distance == app.hcsr.duration * 0.034/2;
+                if (app.hcsr.distance >= 0.9 && app.hcsr.distance <= 1.4){
+                    moverMagazinePara(0);
+                }
+                else if (app.hcsr.distance >= 1.7 && app.hcsr.distance <= 3){
+                    moverMagazinePara(1);
+                }
+                else moverMagazinePara(2);
+            }
+            else if(app.sensor_mode == MATERIAL){
+                if( ! gpio_get_level(GPIO_NUM_33 /* Indutivo*/) ){
+                    moverMagazinePara(1);
+                    vTaskDelay(8500); // 8,5 segundos
+                    moverMagazinePara(0);
+                }
+                vTaskDelay(100);
             }
         }
         else if(app.operation_mode != EXPERT && app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
         else if(app.operation_mode == EXPERT) {
-            tcs.read();
-            sendSensorJson();
+            if(app.sensor_mode == COR){
+                tcs.read();
+                sendSensorJson();
+            }
         }
 
         atualizaTela(); // Atualiza o display LCD
         // Modula o tempo de atualização do display e leitura do sensor de cores
-        vTaskDelay((app.status == RUNNING ? 250 : 500) / ( ( TickType_t ) 1000 / ( 
-# 1438 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+        vTaskDelay((app.status == RUNNING ? 250 : 500) / ( ( TickType_t ) 1000 / 
+# 1537 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3
                                                         1000 
-# 1438 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
-                                                        ) ));
+# 1537 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+                                                        ));
     }
     // Deleta a task caso saia do loop
     vTaskDelete(
-# 1441 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1540 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1441 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1540 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                    );
 }
 
@@ -1528,23 +1626,31 @@ void setup(void){
     else app.status = STATE_OK;
 
     // Cria a task principal com prioridade 3
-    xTaskCreate(ihm_event_task, "ihm_event_task", (768 + ( 0 + 0 + 0 + 60 )) * 3, 
-# 1501 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+    xTaskCreate(ihm_event_task, "ihm_event_task", ( 
+# 1600 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3
+                                                 1024 
+# 1600 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+                                                 + ( 0 + 0 + 0 + 60 ) ) * 3, 
+# 1600 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                __null
-# 1501 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1600 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                                                                                    , 3, 
-# 1501 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1600 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                         __null
-# 1501 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1600 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                                                                                             );
-    xTaskCreate(principal_task, "principal_task", (768 + ( 0 + 0 + 0 + 60 )) * 3, 
-# 1502 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+    xTaskCreate(principal_task, "principal_task", ( 
+# 1601 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3
+                                                 1024 
+# 1601 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
+                                                 + ( 0 + 0 + 0 + 60 ) ) * 3, 
+# 1601 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                __null
-# 1502 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1601 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                                                                                    , 3, 
-# 1502 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1601 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                         __null
-# 1502 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1601 "c:\\Users\\User\\Documents\\workspace\\PI2\\MYT_600\\MYT_600.ino"
                                                                                             );
 }
 /********************** LOOP **********************/

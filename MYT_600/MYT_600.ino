@@ -1,9 +1,8 @@
 /**************************************************************************/
 /**
  * @file    MYT_600.ino
- * @author  Theo Pires
+ * @author  Theo Pires, Yasmin Georgetti
  * @date    26/08/2023
- * @see     www.linkedin.com/in/theo-pires-a34b33183/
 */
 /**************************************************************************/
 
@@ -50,6 +49,14 @@
 #define TCS230_OUT_PIN GPIO_NUM_13 // Output Sensor
 #define TCS230_RGB_SIZE 3
 
+// SENSOR ULTRASSÔNICO
+#define HCSR04_TRIG_PIN GPIO_NUM_4 // Trigger 
+#define HCSR04_ECHO_PIN GPIO_NUM_2 // Echo
+#define SOUND_SPEED 0.034
+
+// SENSOR INDUTIVO 
+#define INDUTIVO_PIN GPIO_NUM_33 // Indutivo
+
 // DISPLAY LCD I2C
 #define SDA_LCD_PIN GPIO_NUM_21
 #define SCL_LCD_PIN GPIO_NUM_22
@@ -84,8 +91,10 @@ enum telas_ihm {
             MENU_CAL_ESTEIRA  = 120,
             MENU_CAL_MAGAZINE = 121,
             MENU_CAL_SENSOR   = 122,
+            //  MODO SENSOR
+                MENU_CAL_SENSOR_COR = 1221,
          // RESTAURAR CONFIG
-        MENU_CREDITOS     = 13,
+        MENU_CREDITOS     = 13, 
     MONITORAMENTO  = 2
 };
 enum keys {
@@ -122,10 +131,19 @@ enum status {
     ERROR_8,
     ERROR_9
 };
-enum mode {
+enum operation_mode {
     PADRAO,
     BASICO,
     EXPERT
+};
+enum sensor_mode {
+    COR,
+    ALTURA,
+    MATERIAL
+};
+enum sensor_indutivo {
+    METAL,
+    NOT_METAL
 };
 
 // Estruturas
@@ -161,7 +179,14 @@ typedef struct {
     uint8_t    last_color;
 } tcs_config_t;
 typedef struct {
-    uint8_t    tela_atual;
+    float distance;
+    uint32_t duration;
+} hcsr_config_t;
+typedef struct {
+    bool state;
+} indutivo_config_t;
+typedef struct {
+    uint16_t   tela_atual;
     uint8_t    tela_anterior;
     uint8_t    linha_atual;
     uint8_t    linha_min;
@@ -176,9 +201,13 @@ typedef struct {
     esteira_config_t  esteira;
     magazine_config_t magazine;
     tcs_config_t      tcs;
+    hcsr_config_t     hcsr;
+    indutivo_config_t indutivo;
     ihm_config_t      ihm;  
     uint8_t           operation_mode;
+    uint8_t           sensor_mode;
     char              operation_mode_printable[3][8];
+    char              sensor_mode_printable[3][9];
     uint8_t           status;
     char              status_printable[12][8];
     uint8_t           qtd_pecas[TCS230_RGB_SIZE];
@@ -218,7 +247,7 @@ static const char * TCS230_TAG = "TCS230";
 static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
-static const char * versao = "1.3.0";
+static const char * versao = "1.4.0";
 
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
@@ -266,6 +295,13 @@ app_config_t app = {
         .read_time  = 100,
         .last_color = BLACK
     },
+    .hcsr = {
+        .distance = 0,
+        .duration = 0
+    },
+    .indutivo = {
+        .state = NOT_METAL
+    },
     .ihm = {
         .tela_atual            = INICIALIZACAO,
         .tela_anterior         = INICIALIZACAO,
@@ -279,10 +315,16 @@ app_config_t app = {
         .button_pins           = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN}
     },
     .operation_mode   = PADRAO,
+    .sensor_mode      = COR,
     .operation_mode_printable = {
         "PADRAO ",
         "BASICO ",
         "EXPERT "
+    },
+    .sensor_mode_printable = {
+        "COR     ",
+        "ALTURA  ",
+        "MATERIAL"
     },
     .status           = STATE_OK,
     .status_printable = {
@@ -641,11 +683,16 @@ void keyEnter(){
             if(app.ihm.linha_atual == 1) nvs_esp.putUInt("vel", app.magazine.velocidade);
             else if(app.ihm.linha_atual == 2) nvs_esp.putUInt("acel", app.magazine.aceleracao);
         }
-        else if(app.ihm.tela_atual == MENU_CAL_SENSOR){
+        else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_atual == 0)
+            app.sensor_mode < MATERIAL ? app.sensor_mode++ : app.sensor_mode == COR;
+        else if(app.ihm.tela_atual == MENU_CAL_SENSOR_COR){
             if(app.ihm.linha_atual == 3) nvs_esp.putUInt("read_time", app.tcs.read_time);
         } 
     }
-    else if(app.ihm.tela_atual == MENU_PRINCIPAL || (app.ihm.tela_atual == MENU_ACIONAMENTOS && app.ihm.linha_atual != 0) || (app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual != 3))
+    else if(app.ihm.tela_atual == MENU_PRINCIPAL || 
+           (app.ihm.tela_atual == MENU_ACIONAMENTOS && app.ihm.linha_atual != 0) || 
+           (app.ihm.tela_atual == MENU_CONFIGURACAO && app.ihm.linha_atual != 3) ||
+           (app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_atual == 1))
         app.ihm.tela_atual = app.ihm.tela_atual * 10 + app.ihm.linha_atual;
 
     else if(app.ihm.tela_atual == MENU_ACIONAMENTOS && app.ihm.linha_atual == 0)
@@ -684,7 +731,7 @@ void keyEnter(){
     else if(app.ihm.tela_atual == MENU_CAL_MAGAZINE && app.ihm.linha_atual != 0)
         app.ihm.linha_selecionada = true;
 
-    else if(app.ihm.tela_atual == MENU_CAL_SENSOR){
+    else if(app.ihm.tela_atual == MENU_CAL_SENSOR_COR){
         if(app.ihm.linha_atual == 1){
             tcs.whiteCalibration(&app.tcs.fw);
             nvs_esp.putInt("fw_R", app.tcs.fw.value[RED]);
@@ -759,7 +806,10 @@ void atualizaTela() {
         configMagazine();
         break;
     case MENU_CAL_SENSOR:
-        configSensor();
+        configSensores();
+        break;
+    case MENU_CAL_SENSOR_COR:
+        configSensorCor();
         break;
     default:
         menuPrincipal();
@@ -879,7 +929,7 @@ void menuConfiguracao() {
     lcd.setCursor(0,1);
     lcd.print("  2.MAGAZINE        ");
     lcd.setCursor(0,2);
-    lcd.print("  3.SENSOR TCS230   ");
+    lcd.print("  3.SENSORES        ");
     lcd.setCursor(0,3);
     lcd.print("  4.RESTAURAR CONFIG");
     lcd.setCursor(0,app.ihm.linha_atual);
@@ -1044,7 +1094,20 @@ void configMagazine() {
         lcd.print("#");
     }
 }
-void configSensor() {
+void configSensores() {
+    app.ihm.linha_min = 0;
+    app.ihm.linha_max = 1;
+    lcd.noBlink();
+    lcd.setCursor(0,0);
+    lcd.print("  1.MODO:         ");
+    lcd.setCursor(10,0);
+    lcd.print(app.sensor_mode_printable[app.sensor_mode]);
+    lcd.setCursor(0,1);
+    lcd.print("  2.CONTROLE ESTEIRA");
+    lcd.setCursor(0,app.ihm.linha_atual);
+    lcd.print("~");
+}
+void configSensorCor() {
     if(app.ihm.linha_atual == 0)
         app.ihm.linha_atual = 1;
     app.ihm.linha_min = 1;
@@ -1120,9 +1183,9 @@ void gpioBegin(){
     gpio_config_t io_config = {                 // Configuração do pino de interrupção
         .pin_bit_mask = PIN_MASK,               // Máscara de seleção dos pinos
         .mode         = GPIO_MODE_INPUT,        // Modo de operação do pino
-        .pull_up_en   = GPIO_PULLUP_DISABLE,     // Habilita resistor de pull-up
+        .pull_up_en   = GPIO_PULLUP_DISABLE,    // Habilita resistor de pull-up
         .pull_down_en = GPIO_PULLDOWN_DISABLE,  // Desabilita resistor de pull-down
-        .intr_type    = GPIO_INTR_NEGEDGE      // Tipo de interrupção
+        .intr_type    = GPIO_INTR_NEGEDGE       // Tipo de interrupção
     };
 
     gpio_config(&io_config);                    // Chama a função para configurar o GPIO
@@ -1137,6 +1200,14 @@ void gpioBegin(){
     for(int i = 0; i < 5; i++){
         gpio_isr_handler_add(app.ihm.button_pins[i], gpio_isr_handler, (void *) app.ihm.button_pins[i]);
     }
+
+    // Configura os pinos do sensor ultrassônico
+    gpio_set_direction(HCSR04_TRIG_PIN, GPIO_MODE_OUTPUT);
+    gpio_set_direction(HCSR04_ECHO_PIN, GPIO_MODE_INPUT);
+
+    // Configura o pino do sensor indutivo como entrada com pullUp
+    gpio_set_direction(INDUTIVO_PIN, GPIO_MODE_INPUT);
+    gpio_set_pull_mode(INDUTIVO_PIN, GPIO_PULLUP_ONLY);
 
 } // end gpioBegin
 
@@ -1404,33 +1475,61 @@ static void principal_task(void *pvParameters){
     while(true){
         // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING        
         if(app.operation_mode != EXPERT && app.status == RUNNING){
-            tcs.read();
-            if( ! app.esteira.is_running) moverEsteira();
-            if(tcs.getColor() != app.tcs.last_color) {
-                switch (tcs.getColor())
-                {
-                case RED:
-                    app.qtd_pecas[RED]++;
-                    moverMagazinePara(RED);
-                    break;
-                case GREEN:
-                    app.qtd_pecas[GREEN]++;
-                    moverMagazinePara(GREEN);
-                    break;
-                case BLUE:
-                    app.qtd_pecas[BLUE]++;
-                    moverMagazinePara(BLUE);
-                    break;               
-                default:
-                    break;
+            if(app.sensor_mode == COR){
+                tcs.read();
+                if( ! app.esteira.is_running) moverEsteira();
+                if(tcs.getColor() != app.tcs.last_color) {
+                    switch (tcs.getColor())
+                    {
+                    case RED:
+                        app.qtd_pecas[RED]++;
+                        moverMagazinePara(RED);
+                        break;
+                    case GREEN:
+                        app.qtd_pecas[GREEN]++;
+                        moverMagazinePara(GREEN);
+                        break;
+                    case BLUE:
+                        app.qtd_pecas[BLUE]++;
+                        moverMagazinePara(BLUE);
+                        break;               
+                    default:
+                        break;
+                    }
+                    app.tcs.last_color = tcs.getColor();
                 }
-                app.tcs.last_color = tcs.getColor();
+            }
+            else if(app.sensor_mode == ALTURA){
+                gpio_set_level(HCSR04_TRIG_PIN, LOW);
+                delayMicroseconds(1);
+                gpio_set_level(HCSR04_TRIG_PIN, HIGH);
+                delayMicroseconds(10);
+                gpio_set_level(HCSR04_TRIG_PIN, LOW);
+                app.hcsr.duration == pulseIn(HCSR04_ECHO_PIN, HIGH);
+                app.hcsr.distance == app.hcsr.duration * SOUND_SPEED/2;
+                if (app.hcsr.distance >= 0.9 && app.hcsr.distance <= 1.4){
+                    moverMagazinePara(0);
+                }
+                else if (app.hcsr.distance >= 1.7 && app.hcsr.distance <= 3){
+                    moverMagazinePara(1);
+                }
+                else moverMagazinePara(2);
+            }
+            else if(app.sensor_mode == MATERIAL){
+                if( ! gpio_get_level(INDUTIVO_PIN) ){
+                    moverMagazinePara(1);
+                    vTaskDelay(8500);      // 8,5 segundos
+                    moverMagazinePara(0);
+                }
+                vTaskDelay(100);
             }
         }
         else if(app.operation_mode != EXPERT && app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
         else if(app.operation_mode == EXPERT) {
-            tcs.read();
-            sendSensorJson();
+            if(app.sensor_mode == COR){
+                tcs.read();
+                sendSensorJson();
+            }
         }
 
         atualizaTela(); // Atualiza o display LCD
