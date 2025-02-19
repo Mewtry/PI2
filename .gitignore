@@ -3,6 +3,12 @@
 # testing files
 Testes/
 
+# build files
+build/
+!build/*.ino.bin
+!build/*.ino.bootloader.bin
+!build/*.ino.partitions.bin
+
 # Prerequisites
 *.d
 
