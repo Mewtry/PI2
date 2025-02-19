@@ -4,7 +4,7 @@
 Testes/
 
 # build files
-build/
+build/*
 !build/*.ino.bin
 !build/*.ino.bootloader.bin
 !build/*.ino.partitions.bin
