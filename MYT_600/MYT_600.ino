@@ -50,8 +50,8 @@
 #define TCS230_RGB_SIZE 3
 
 // SENSOR ULTRASSÔNICO
-#define HCSR04_TRIG_PIN GPIO_NUM_4 // Trigger 
-#define HCSR04_ECHO_PIN GPIO_NUM_2 // Echo
+#define HCSR04_TRIG_PIN GPIO_NUM_2 // Trigger 
+#define HCSR04_ECHO_PIN GPIO_NUM_4 // Echo
 #define SOUND_SPEED 0.034
 
 // SENSOR INDUTIVO 
@@ -72,7 +72,7 @@
 #define KEY_RIGHT_PIN GPIO_NUM_39
 #define KEY_UP_PIN    GPIO_NUM_34
 #define KEY_DOWN_PIN  GPIO_NUM_35
-#define KEY_ENTER_PIN GPIO_NUM_33
+#define KEY_ENTER_PIN GPIO_NUM_32
 #define PIN_MASK (1ULL << KEY_LEFT_PIN) | (1ULL << KEY_RIGHT_PIN) | (1ULL << KEY_UP_PIN) | (1ULL << KEY_DOWN_PIN) | (1ULL << KEY_ENTER_PIN)
 
 /******************** ESTRUTURAS *******************/
@@ -683,8 +683,6 @@ void keyEnter(){
             if(app.ihm.linha_atual == 1) nvs_esp.putUInt("vel", app.magazine.velocidade);
             else if(app.ihm.linha_atual == 2) nvs_esp.putUInt("acel", app.magazine.aceleracao);
         }
-        else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_atual == 0)
-            app.sensor_mode < MATERIAL ? app.sensor_mode++ : app.sensor_mode == COR;
         else if(app.ihm.tela_atual == MENU_CAL_SENSOR_COR){
             if(app.ihm.linha_atual == 3) nvs_esp.putUInt("read_time", app.tcs.read_time);
         } 
@@ -697,6 +695,9 @@ void keyEnter(){
 
     else if(app.ihm.tela_atual == MENU_ACIONAMENTOS && app.ihm.linha_atual == 0)
         app.operation_mode < EXPERT ? app.operation_mode++ : app.operation_mode = PADRAO;
+        
+    else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_atual == 0)
+        app.sensor_mode < MATERIAL ? app.sensor_mode++ : app.sensor_mode == COR;
 
     else if(app.ihm.tela_atual == MENU_ESTEIRA || app.ihm.tela_atual == MENU_MAGAZINE){
         app.ihm.tela_atual = app.ihm.tela_atual / 10;
@@ -871,7 +872,7 @@ void monitoramento() {
     lcd.print("B~");
     lcd.print(app.qtd_pecas[BLUE]);
     lcd.print("|PECAS/MIN: ");
-    lcd.print(digitalRead(KEY_UP_PIN));
+    lcd.print(app.hcsr.distance);
     switch (app.magazine.position)
     {
     case RED:
@@ -1103,7 +1104,7 @@ void configSensores() {
     lcd.setCursor(10,0);
     lcd.print(app.sensor_mode_printable[app.sensor_mode]);
     lcd.setCursor(0,1);
-    lcd.print("  2.CONTROLE ESTEIRA");
+    lcd.print("  2.SENSOR COR    ");
     lcd.setCursor(0,app.ihm.linha_atual);
     lcd.print("~");
 }
@@ -1475,9 +1476,9 @@ static void principal_task(void *pvParameters){
     while(true){
         // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING        
         if(app.operation_mode != EXPERT && app.status == RUNNING){
+            if( ! app.esteira.is_running) moverEsteira();
             if(app.sensor_mode == COR){
                 tcs.read();
-                if( ! app.esteira.is_running) moverEsteira();
                 if(tcs.getColor() != app.tcs.last_color) {
                     switch (tcs.getColor())
                     {
@@ -1507,10 +1508,10 @@ static void principal_task(void *pvParameters){
                 gpio_set_level(HCSR04_TRIG_PIN, LOW);
                 app.hcsr.duration == pulseIn(HCSR04_ECHO_PIN, HIGH);
                 app.hcsr.distance == app.hcsr.duration * SOUND_SPEED/2;
-                if (app.hcsr.distance >= 0.9 && app.hcsr.distance <= 1.4){
+                if (app.hcsr.distance >= 1.7 && app.hcsr.distance <= 3){
                     moverMagazinePara(0);
                 }
-                else if (app.hcsr.distance >= 1.7 && app.hcsr.distance <= 3){
+                else if (app.hcsr.distance >= 0.9 && app.hcsr.distance <= 1.4){
                     moverMagazinePara(1);
                 }
                 else moverMagazinePara(2);
@@ -1521,7 +1522,6 @@ static void principal_task(void *pvParameters){
                     vTaskDelay(8500);      // 8,5 segundos
                     moverMagazinePara(0);
                 }
-                vTaskDelay(100);
             }
         }
         else if(app.operation_mode != EXPERT && app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
