@@ -53,6 +53,7 @@
 #define HCSR04_TRIG_PIN GPIO_NUM_2 // Trigger 
 #define HCSR04_ECHO_PIN GPIO_NUM_4 // Echo
 #define SOUND_SPEED 0.034
+#define timeout_expired(start, len) ((esp_timer_get_time() - (start)) >= (len))
 
 // SENSOR INDUTIVO 
 #define INDUTIVO_PIN GPIO_NUM_33 // Indutivo
@@ -315,7 +316,7 @@ app_config_t app = {
         .button_pins           = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN}
     },
     .operation_mode   = PADRAO,
-    .sensor_mode      = COR,
+    .sensor_mode      = ALTURA,
     .operation_mode_printable = {
         "PADRAO ",
         "BASICO ",
@@ -1506,15 +1507,37 @@ static void principal_task(void *pvParameters){
                 gpio_set_level(HCSR04_TRIG_PIN, HIGH);
                 delayMicroseconds(10);
                 gpio_set_level(HCSR04_TRIG_PIN, LOW);
-                app.hcsr.duration == pulseIn(HCSR04_ECHO_PIN, HIGH);
-                app.hcsr.distance == app.hcsr.duration * SOUND_SPEED/2;
-                if (app.hcsr.distance >= 1.7 && app.hcsr.distance <= 3){
+
+                // Wait for echo
+                int64_t start = esp_timer_get_time();
+                while (!gpio_get_level(HCSR04_ECHO_PIN))
+                {
+                    if (timeout_expired(start, 6000))
+                        break;
+                }
+
+                // got echo, measuring
+                int64_t echo_start = esp_timer_get_time();
+                int64_t time = echo_start;
+                while (gpio_get_level(HCSR04_ECHO_PIN))
+                {
+                    time = esp_timer_get_time();
+                    if (timeout_expired(echo_start, 10 * 5800))
+                        break;
+                }
+
+                app.hcsr.distance = (time - echo_start)/58.00;
+
+                if (app.hcsr.distance >= 1.8 && app.hcsr.distance <= 2){
                     moverMagazinePara(0);
                 }
-                else if (app.hcsr.distance >= 0.9 && app.hcsr.distance <= 1.4){
+                else if (app.hcsr.distance >= 1.5 && app.hcsr.distance <= 1.7){
                     moverMagazinePara(1);
+                } 
+                else if(app.hcsr.distance >= 3.0 && app.hcsr.distance <= 3.3) {
+
                 }
-                else moverMagazinePara(2);
+                //else moverMagazinePara(2);
             }
             else if(app.sensor_mode == MATERIAL){
                 if( ! gpio_get_level(INDUTIVO_PIN) ){
