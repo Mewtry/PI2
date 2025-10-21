@@ -204,7 +204,7 @@ static const char * TCS230_TAG = "TCS230";
 static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
-static const char * versao = "1.3.0";
+static const char * versao = "1.3.1";
 
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
@@ -1144,6 +1144,9 @@ void gpioBegin(){
 
 
 /*===============JSON===============*/
+void simpleResponseOK(){
+    printf("Comando recebido!\r\n");
+}
 void responseOK(){
     char * output = (char *) malloc((sizeof(char) * 50));
     StaticJsonDocument<50> json_OUT;
@@ -1185,7 +1188,48 @@ void trataComandoRecebido(uint8_t * dt){
         printf("Versao: %s\r\n", versao);
         return;
     }
-    if(dt[0] == '{'){
+    else if(dt[0] == 'c' || dt[0] == 'C') { // Comando Start
+        app.status = RUNNING;
+        simpleResponseOK();
+        return;
+    }
+    else if(dt[0] == 'p' || dt[0] == 'P') { // Comando Parar
+        pararEsteira();
+        app.status = STATE_OK;
+        simpleResponseOK();
+        return;
+    }
+    else if(dt[0] == 'r' || dt[0] == 'R') { // Comando Mover magazine RED
+        app.qtd_pecas[RED]++;
+        moverMagazinePara(RED);
+        simpleResponseOK();
+        return;
+    }
+    else if(dt[0] == 'g' || dt[0] == 'G') { // Comando Mover magazine GREEN
+        app.qtd_pecas[GREEN]++;
+        moverMagazinePara(GREEN);
+        simpleResponseOK();
+        return;
+    }
+    else if(dt[0] == 'b' || dt[0] == 'B') { // Comando Mover magazine BLUE
+        app.qtd_pecas[BLUE]++;
+        moverMagazinePara(BLUE);
+        simpleResponseOK();
+        return;
+    }
+    else if(dt[0] == 'e' || dt[0] == 'E') { // Comando de toggle da esteira
+        if(app.esteira.is_running) pararEsteira();
+        else moverEsteira();
+        simpleResponseOK();
+        return;
+    }
+    else if(dt[0] == 's' || dt[0] == 'S') { // Comando para sentido da esteira
+        app.esteira.sentido = !app.esteira.sentido;
+        atualizaEsteira(true);
+        simpleResponseOK();
+        return;
+    }
+    else if(dt[0] == '{'){
         // printf("JSON: %s\r\n", dt);
         StaticJsonDocument<200> json_IN;
         DeserializationError err = deserializeJson(json_IN, dt);
@@ -1328,18 +1372,18 @@ static void uart_event_task(void *pvParameters){
     while(1){
         // Primeiro aguardamos pela ocorrência de um evento e depois analisamos seu tipo
         if (xQueueReceive(uart_queue, (void *) &event, ( ( TickType_t ) ( ( ( TickType_t ) ( 100 ) * ( TickType_t ) ( 
-# 1328 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1372 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                       1000 
-# 1328 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1372 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                       ) ) / ( TickType_t ) 1000U ) ))){
             // Ocorreu um evento, então devemos analisar seu tipo e então finalizar o loop
             switch (event.type)
             {
             case UART_DATA:
                 len = uart_read_bytes((0) /*!< UART port 0 */, data, (1024), 200 / ( ( TickType_t ) 1000 / ( 
-# 1333 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1377 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                      1000 
-# 1333 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1377 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                      ) ));
                 if(len > 0){
                     data[len] = '\0'; // Trunca o buffer para trabalhar como uma string                   
@@ -1369,15 +1413,15 @@ static void uart_event_task(void *pvParameters){
     // Desacola a memória dinâmica criada na task
     free(data);
     data = 
-# 1361 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1405 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
           __null
-# 1361 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1405 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
               ;
     // Deleta a task após a sua conclusão
     vTaskDelete(
-# 1363 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1407 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1363 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1407 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                    );
 } // end uart_event_task
 
@@ -1416,9 +1460,9 @@ static void ihm_event_task(void *pvParameters){
     }
     // Deleta a task caso saia do loop
     vTaskDelete(
-# 1400 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1444 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1400 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1444 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                    );
 }
 
@@ -1458,16 +1502,16 @@ static void principal_task(void *pvParameters){
         atualizaTela(); // Atualiza o display LCD
         // Modula o tempo de atualização do display e leitura do sensor de cores
         vTaskDelay((app.status == RUNNING ? 250 : 500) / ( ( TickType_t ) 1000 / ( 
-# 1438 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1482 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                         1000 
-# 1438 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1482 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                         ) ));
     }
     // Deleta a task caso saia do loop
     vTaskDelete(
-# 1441 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1485 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1441 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1485 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                    );
 }
 
@@ -1529,22 +1573,22 @@ void setup(void){
 
     // Cria a task principal com prioridade 3
     xTaskCreate(ihm_event_task, "ihm_event_task", (768 + ( 0 + 0 + 0 + 60 )) * 3, 
-# 1501 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1545 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                __null
-# 1501 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1545 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                                    , 3, 
-# 1501 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1545 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                         __null
-# 1501 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1545 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                                             );
     xTaskCreate(principal_task, "principal_task", (768 + ( 0 + 0 + 0 + 60 )) * 3, 
-# 1502 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1546 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                __null
-# 1502 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1546 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                                    , 3, 
-# 1502 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1546 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                         __null
-# 1502 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1546 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                                             );
 }
 /********************** LOOP **********************/

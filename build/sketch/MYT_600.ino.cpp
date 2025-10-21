@@ -220,7 +220,7 @@ static const char * TCS230_TAG = "TCS230";
 static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
-static const char * versao = "1.3.0";
+static const char * versao = "1.3.1";
 
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
@@ -434,22 +434,24 @@ void uartBegin();
 #line 1119 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void gpioBegin();
 #line 1145 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+void simpleResponseOK();
+#line 1148 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void responseOK();
-#line 1154 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 1157 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void responseError( uint8_t code, const char * message);
-#line 1166 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 1169 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void sendSensorJson();
-#line 1180 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 1183 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void trataComandoRecebido(uint8_t * dt);
-#line 1318 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 1362 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 static void uart_event_task(void *pvParameters);
-#line 1366 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 1410 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 static void ihm_event_task(void *pvParameters);
-#line 1403 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 1447 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 static void principal_task(void *pvParameters);
-#line 1458 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 1502 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void setup(void);
-#line 1505 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+#line 1549 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 void loop(void);
 #line 384 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 static void IRAM_ATTR gpio_isr_handler(void *arg){
@@ -1213,6 +1215,9 @@ void gpioBegin(){
 
 
 /*===============JSON===============*/
+void simpleResponseOK(){
+    printf("Comando recebido!\r\n");
+}
 void responseOK(){
     char * output = (char *) malloc((sizeof(char) * 50));
     StaticJsonDocument<50> json_OUT;
@@ -1254,7 +1259,48 @@ void trataComandoRecebido(uint8_t * dt){
         printf("Versao: %s\r\n", versao);
         return;
     }
-    if(dt[0] == '{'){
+    else if(dt[0] == 'c' || dt[0] == 'C') { // Comando Start
+        app.status = RUNNING;
+        simpleResponseOK();
+        return;
+    }
+    else if(dt[0] == 'p' || dt[0] == 'P') { // Comando Parar
+        pararEsteira();
+        app.status = STATE_OK;
+        simpleResponseOK();
+        return;
+    }
+    else if(dt[0] == 'r' || dt[0] == 'R') { // Comando Mover magazine RED
+        app.qtd_pecas[RED]++;
+        moverMagazinePara(RED);
+        simpleResponseOK();
+        return;
+    }
+    else if(dt[0] == 'g' || dt[0] == 'G') { // Comando Mover magazine GREEN
+        app.qtd_pecas[GREEN]++;
+        moverMagazinePara(GREEN);
+        simpleResponseOK();
+        return;
+    }
+    else if(dt[0] == 'b' || dt[0] == 'B') { // Comando Mover magazine BLUE
+        app.qtd_pecas[BLUE]++;
+        moverMagazinePara(BLUE);
+        simpleResponseOK();
+        return;
+    }
+    else if(dt[0] == 'e' || dt[0] == 'E') { // Comando de toggle da esteira
+        if(app.esteira.is_running) pararEsteira();
+        else moverEsteira();
+        simpleResponseOK();
+        return;
+    }
+    else if(dt[0] == 's' || dt[0] == 'S') { // Comando para sentido da esteira
+        app.esteira.sentido = !app.esteira.sentido;
+        atualizaEsteira(true);
+        simpleResponseOK();
+        return;
+    }
+    else if(dt[0] == '{'){
         // printf("JSON: %s\r\n", dt);
         StaticJsonDocument<200> json_IN;
         DeserializationError err = deserializeJson(json_IN, dt);
