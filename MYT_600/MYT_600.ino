@@ -124,6 +124,7 @@ enum status {
 };
 enum mode {
     PADRAO,
+    SIMPLES,
     BASICO,
     EXPERT
 };
@@ -178,7 +179,7 @@ typedef struct {
     tcs_config_t      tcs;
     ihm_config_t      ihm;  
     uint8_t           operation_mode;
-    char              operation_mode_printable[3][8];
+    char              operation_mode_printable[4][8];
     uint8_t           status;
     char              status_printable[12][8];
     uint8_t           qtd_pecas[TCS230_RGB_SIZE];
@@ -281,6 +282,7 @@ app_config_t app = {
     .operation_mode   = PADRAO,
     .operation_mode_printable = {
         "PADRAO ",
+        "SIMPLES",
         "BASICO ",
         "EXPERT "
     },
@@ -1166,9 +1168,15 @@ void responseError( uint8_t code, const char * message){
     printf("%s\r\n", output);
     free(output);
 }
+void simpleSendSensor(){
+    tcs.read();
+    if(tcs.getColor() == RED) printf("R\r\n");
+    else if(tcs.getColor() == GREEN) printf("G\r\n");
+    else if(tcs.getColor() == BLUE) printf("B\r\n");
+}
 void sendSensorJson(){
     char * output = (char *) malloc((sizeof(char) * 200));
-    tcs.getRaw(&app.tcs.raw);
+    tcs.read();
     tcs.getRGB(&app.tcs.rgb);
     StaticJsonDocument<200> json_OUT;
     json_OUT["type"] = "sensor";
@@ -1182,50 +1190,52 @@ void sendSensorJson(){
 }
 void trataComandoRecebido(uint8_t * dt){
     // printf("Dado em tratamento: %s\r\n", dt);
-    if(dt[0] == 'v'){
+    if(dt[0] == 'v' || dt[0] == 'V'){
         printf("Versao: %s\r\n", versao);
         return;
     }
-    else if(dt[0] == 'c' || dt[0] == 'C') { // Comando Start
-        app.status = RUNNING;
-        simpleResponseOK();
-        return;
-    }
-    else if(dt[0] == 'p' || dt[0] == 'P') { // Comando Parar
-        pararEsteira();
-        app.status = STATE_OK;
-        simpleResponseOK();
-        return;
-    }
-    else if(dt[0] == 'r' || dt[0] == 'R') { // Comando Mover magazine RED
-        app.qtd_pecas[RED]++;
-        moverMagazinePara(RED);
-        simpleResponseOK();
-        return;
-    }
-    else if(dt[0] == 'g' || dt[0] == 'G') { // Comando Mover magazine GREEN
-        app.qtd_pecas[GREEN]++;
-        moverMagazinePara(GREEN);
-        simpleResponseOK();
-        return;
-    }
-    else if(dt[0] == 'b' || dt[0] == 'B') { // Comando Mover magazine BLUE
-        app.qtd_pecas[BLUE]++;
-        moverMagazinePara(BLUE);
-        simpleResponseOK();
-        return;
-    }
-    else if(dt[0] == 'e' || dt[0] == 'E') { // Comando de toggle da esteira
-        if(app.esteira.is_running) pararEsteira();
-        else moverEsteira();
-        simpleResponseOK();
-        return;
-    }
-    else if(dt[0] == 's' || dt[0] == 'S') { // Comando para sentido da esteira
-        app.esteira.sentido = !app.esteira.sentido;
-        atualizaEsteira(true);
-        simpleResponseOK();
-        return;
+    else if(app.operation_mode == SIMPLES){
+      if(dt[0] == 'c' || dt[0] == 'C') { // Comando Start
+          app.status = RUNNING;
+          simpleResponseOK();
+          return;
+      }
+      else if(dt[0] == 'p' || dt[0] == 'P') { // Comando Parar
+          pararEsteira();
+          app.status = STATE_OK;
+          simpleResponseOK();
+          return;
+      }
+      else if(dt[0] == 'r' || dt[0] == 'R') { // Comando Mover magazine RED
+          app.qtd_pecas[RED]++;
+          moverMagazinePara(RED);
+          simpleResponseOK();
+          return;
+      }
+      else if(dt[0] == 'g' || dt[0] == 'G') { // Comando Mover magazine GREEN
+          app.qtd_pecas[GREEN]++;
+          moverMagazinePara(GREEN);
+          simpleResponseOK();
+          return;
+      }
+      else if(dt[0] == 'b' || dt[0] == 'B') { // Comando Mover magazine BLUE
+          app.qtd_pecas[BLUE]++;
+          moverMagazinePara(BLUE);
+          simpleResponseOK();
+          return;
+      }
+      else if(dt[0] == 'e' || dt[0] == 'E') { // Comando de toggle da esteira
+          if(app.esteira.is_running) pararEsteira();
+          else moverEsteira();
+          simpleResponseOK();
+          return;
+      }
+      else if(dt[0] == 's' || dt[0] == 'S') { // Comando para sentido da esteira
+          app.esteira.sentido = !app.esteira.sentido;
+          atualizaEsteira(true);
+          simpleResponseOK();
+          return;
+      }
     }
     else if(dt[0] == '{'){
         // printf("JSON: %s\r\n", dt);
@@ -1447,7 +1457,7 @@ static void ihm_event_task(void *pvParameters){
 static void principal_task(void *pvParameters){
     while(true){
         // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING        
-        if(app.operation_mode != EXPERT && app.status == RUNNING){
+        if(app.operation_mode != EXPERT && app.operation_mode != SIMPLES && app.status == RUNNING){
             tcs.read();
             if( ! app.esteira.is_running) moverEsteira();
             if(tcs.getColor() != app.tcs.last_color) {
@@ -1472,10 +1482,8 @@ static void principal_task(void *pvParameters){
             }
         }
         else if(app.operation_mode != EXPERT && app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
-        else if(app.operation_mode == EXPERT) {
-            tcs.read();
-            sendSensorJson();
-        }
+        else if(app.operation_mode == SIMPLES) simpleSendSensor();
+        else if(app.operation_mode == EXPERT) sendSensorJson();
 
         atualizaTela(); // Atualiza o display LCD
         // Modula o tempo de atualização do display e leitura do sensor de cores

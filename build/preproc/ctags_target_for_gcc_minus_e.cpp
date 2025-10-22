@@ -110,6 +110,7 @@ enum status {
 };
 enum mode {
     PADRAO,
+    SIMPLES,
     BASICO,
     EXPERT
 };
@@ -164,7 +165,7 @@ typedef struct {
     tcs_config_t tcs;
     ihm_config_t ihm;
     uint8_t operation_mode;
-    char operation_mode_printable[3][8];
+    char operation_mode_printable[4][8];
     uint8_t status;
     char status_printable[12][8];
     uint8_t qtd_pecas[3];
@@ -209,9 +210,9 @@ static const char * versao = "1.3.1";
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = 
-# 225 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 226 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                        __null
-# 225 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 226 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                            ;
 
 // declaração das estruturas de app e aluno
@@ -271,6 +272,7 @@ app_config_t app = {
     .operation_mode = PADRAO,
     .operation_mode_printable = {
         "PADRAO ",
+        "SIMPLES",
         "BASICO ",
         "EXPERT "
     },
@@ -376,9 +378,9 @@ static void __attribute__((section(".iram1" "." "28"))) gpio_isr_handler(void *a
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueGenericSendFromISR( ( gpio_event_queue ), ( &gpio_num ), ( 
-# 388 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 390 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
        __null 
-# 388 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 390 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
        ), ( ( BaseType_t ) 0 ) );
     }
 }
@@ -1108,13 +1110,13 @@ void uartBegin(){
 
     // Cria a task no nucleo 0 com prioridade 1
     xTaskCreate(uart_event_task, "uart_event_task", 4096, 
-# 1116 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1118 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                          __null
-# 1116 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1118 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                              , 4, 
-# 1116 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1118 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                   __null
-# 1116 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1118 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                       );
 
 } // end uart_init
@@ -1168,9 +1170,15 @@ void responseError( uint8_t code, const char * message){
     printf("%s\r\n", output);
     free(output);
 }
+void simpleSendSensor(){
+    tcs.read();
+    if(tcs.getColor() == RED) printf("R\r\n");
+    else if(tcs.getColor() == GREEN) printf("G\r\n");
+    else if(tcs.getColor() == BLUE) printf("B\r\n");
+}
 void sendSensorJson(){
     char * output = (char *) malloc((sizeof(char) * 200));
-    tcs.getRaw(&app.tcs.raw);
+    tcs.read();
     tcs.getRGB(&app.tcs.rgb);
     StaticJsonDocument<200> json_OUT;
     json_OUT["type"] = "sensor";
@@ -1184,50 +1192,52 @@ void sendSensorJson(){
 }
 void trataComandoRecebido(uint8_t * dt){
     // printf("Dado em tratamento: %s\r\n", dt);
-    if(dt[0] == 'v'){
+    if(dt[0] == 'v' || dt[0] == 'V'){
         printf("Versao: %s\r\n", versao);
         return;
     }
-    else if(dt[0] == 'c' || dt[0] == 'C') { // Comando Start
-        app.status = RUNNING;
-        simpleResponseOK();
-        return;
-    }
-    else if(dt[0] == 'p' || dt[0] == 'P') { // Comando Parar
-        pararEsteira();
-        app.status = STATE_OK;
-        simpleResponseOK();
-        return;
-    }
-    else if(dt[0] == 'r' || dt[0] == 'R') { // Comando Mover magazine RED
-        app.qtd_pecas[RED]++;
-        moverMagazinePara(RED);
-        simpleResponseOK();
-        return;
-    }
-    else if(dt[0] == 'g' || dt[0] == 'G') { // Comando Mover magazine GREEN
-        app.qtd_pecas[GREEN]++;
-        moverMagazinePara(GREEN);
-        simpleResponseOK();
-        return;
-    }
-    else if(dt[0] == 'b' || dt[0] == 'B') { // Comando Mover magazine BLUE
-        app.qtd_pecas[BLUE]++;
-        moverMagazinePara(BLUE);
-        simpleResponseOK();
-        return;
-    }
-    else if(dt[0] == 'e' || dt[0] == 'E') { // Comando de toggle da esteira
-        if(app.esteira.is_running) pararEsteira();
-        else moverEsteira();
-        simpleResponseOK();
-        return;
-    }
-    else if(dt[0] == 's' || dt[0] == 'S') { // Comando para sentido da esteira
-        app.esteira.sentido = !app.esteira.sentido;
-        atualizaEsteira(true);
-        simpleResponseOK();
-        return;
+    else if(app.operation_mode == SIMPLES){
+      if(dt[0] == 'c' || dt[0] == 'C') { // Comando Start
+          app.status = RUNNING;
+          simpleResponseOK();
+          return;
+      }
+      else if(dt[0] == 'p' || dt[0] == 'P') { // Comando Parar
+          pararEsteira();
+          app.status = STATE_OK;
+          simpleResponseOK();
+          return;
+      }
+      else if(dt[0] == 'r' || dt[0] == 'R') { // Comando Mover magazine RED
+          app.qtd_pecas[RED]++;
+          moverMagazinePara(RED);
+          simpleResponseOK();
+          return;
+      }
+      else if(dt[0] == 'g' || dt[0] == 'G') { // Comando Mover magazine GREEN
+          app.qtd_pecas[GREEN]++;
+          moverMagazinePara(GREEN);
+          simpleResponseOK();
+          return;
+      }
+      else if(dt[0] == 'b' || dt[0] == 'B') { // Comando Mover magazine BLUE
+          app.qtd_pecas[BLUE]++;
+          moverMagazinePara(BLUE);
+          simpleResponseOK();
+          return;
+      }
+      else if(dt[0] == 'e' || dt[0] == 'E') { // Comando de toggle da esteira
+          if(app.esteira.is_running) pararEsteira();
+          else moverEsteira();
+          simpleResponseOK();
+          return;
+      }
+      else if(dt[0] == 's' || dt[0] == 'S') { // Comando para sentido da esteira
+          app.esteira.sentido = !app.esteira.sentido;
+          atualizaEsteira(true);
+          simpleResponseOK();
+          return;
+      }
     }
     else if(dt[0] == '{'){
         // printf("JSON: %s\r\n", dt);
@@ -1372,18 +1382,18 @@ static void uart_event_task(void *pvParameters){
     while(1){
         // Primeiro aguardamos pela ocorrência de um evento e depois analisamos seu tipo
         if (xQueueReceive(uart_queue, (void *) &event, ( ( TickType_t ) ( ( ( TickType_t ) ( 100 ) * ( TickType_t ) ( 
-# 1372 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1382 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                       1000 
-# 1372 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1382 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                       ) ) / ( TickType_t ) 1000U ) ))){
             // Ocorreu um evento, então devemos analisar seu tipo e então finalizar o loop
             switch (event.type)
             {
             case UART_DATA:
                 len = uart_read_bytes((0) /*!< UART port 0 */, data, (1024), 200 / ( ( TickType_t ) 1000 / ( 
-# 1377 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1387 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                      1000 
-# 1377 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1387 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                      ) ));
                 if(len > 0){
                     data[len] = '\0'; // Trunca o buffer para trabalhar como uma string                   
@@ -1413,15 +1423,15 @@ static void uart_event_task(void *pvParameters){
     // Desacola a memória dinâmica criada na task
     free(data);
     data = 
-# 1405 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1415 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
           __null
-# 1405 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1415 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
               ;
     // Deleta a task após a sua conclusão
     vTaskDelete(
-# 1407 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1417 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1407 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1417 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                    );
 } // end uart_event_task
 
@@ -1460,16 +1470,16 @@ static void ihm_event_task(void *pvParameters){
     }
     // Deleta a task caso saia do loop
     vTaskDelete(
-# 1444 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1454 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1444 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1454 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                    );
 }
 
 static void principal_task(void *pvParameters){
     while(true){
         // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING        
-        if(app.operation_mode != EXPERT && app.status == RUNNING){
+        if(app.operation_mode != EXPERT && app.operation_mode != SIMPLES && app.status == RUNNING){
             tcs.read();
             if( ! app.esteira.is_running) moverEsteira();
             if(tcs.getColor() != app.tcs.last_color) {
@@ -1494,24 +1504,22 @@ static void principal_task(void *pvParameters){
             }
         }
         else if(app.operation_mode != EXPERT && app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
-        else if(app.operation_mode == EXPERT) {
-            tcs.read();
-            sendSensorJson();
-        }
+        else if(app.operation_mode == SIMPLES) simpleSendSensor();
+        else if(app.operation_mode == EXPERT) sendSensorJson();
 
         atualizaTela(); // Atualiza o display LCD
         // Modula o tempo de atualização do display e leitura do sensor de cores
         vTaskDelay((app.status == RUNNING ? 250 : 500) / ( ( TickType_t ) 1000 / ( 
-# 1482 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1490 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                         1000 
-# 1482 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1490 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                         ) ));
     }
     // Deleta a task caso saia do loop
     vTaskDelete(
-# 1485 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1493 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1485 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1493 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                    );
 }
 
@@ -1573,22 +1581,22 @@ void setup(void){
 
     // Cria a task principal com prioridade 3
     xTaskCreate(ihm_event_task, "ihm_event_task", (768 + ( 0 + 0 + 0 + 60 )) * 3, 
-# 1545 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1553 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                __null
-# 1545 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1553 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                                    , 3, 
-# 1545 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1553 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                         __null
-# 1545 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1553 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                                             );
     xTaskCreate(principal_task, "principal_task", (768 + ( 0 + 0 + 0 + 60 )) * 3, 
-# 1546 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1554 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                __null
-# 1546 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1554 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                                    , 3, 
-# 1546 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1554 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                         __null
-# 1546 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1554 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                                             );
 }
 /********************** LOOP **********************/
