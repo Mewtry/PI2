@@ -205,7 +205,7 @@ static const char * TCS230_TAG = "TCS230";
 static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
-static const char * versao = "1.3.1";
+static const char * versao = "1.3.2";
 
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
@@ -267,7 +267,7 @@ app_config_t app = {
         .key_pressed = KEY_NONE,
         .last_key_pressed = KEY_NONE,
         .last_time_key_pressed = 0,
-        .button_pins = {GPIO_NUM_36, GPIO_NUM_39, GPIO_NUM_34, GPIO_NUM_35, GPIO_NUM_33}
+        .button_pins = {GPIO_NUM_36, GPIO_NUM_39, GPIO_NUM_34, GPIO_NUM_35, GPIO_NUM_32}
     },
     .operation_mode = PADRAO,
     .operation_mode_printable = {
@@ -1122,9 +1122,9 @@ void uartBegin(){
 } // end uart_init
 void gpioBegin(){
     gpio_config_t io_config = { // Configuração do pino de interrupção
-        .pin_bit_mask = (1ULL << GPIO_NUM_36) | (1ULL << GPIO_NUM_39) | (1ULL << GPIO_NUM_34) | (1ULL << GPIO_NUM_35) | (1ULL << GPIO_NUM_33), // Máscara de seleção dos pinos
+        .pin_bit_mask = (1ULL << GPIO_NUM_36) | (1ULL << GPIO_NUM_39) | (1ULL << GPIO_NUM_34) | (1ULL << GPIO_NUM_35) | (1ULL << GPIO_NUM_32), // Máscara de seleção dos pinos
         .mode = GPIO_MODE_INPUT, // Modo de operação do pino
-        .pull_up_en = GPIO_PULLUP_DISABLE, // Habilita resistor de pull-up
+        .pull_up_en = GPIO_PULLUP_ENABLE, // Habilita resistor de pull-up
         .pull_down_en = GPIO_PULLDOWN_DISABLE, // Desabilita resistor de pull-down
         .intr_type = GPIO_INTR_NEGEDGE // Tipo de interrupção
     };
@@ -1459,7 +1459,7 @@ static void ihm_event_task(void *pvParameters){
                 case GPIO_NUM_35:
                     keyDown();
                     break;
-                case GPIO_NUM_33:
+                case GPIO_NUM_32:
                     keyEnter();
                     break;
                 default:

@@ -65,7 +65,7 @@
 #define KEY_RIGHT_PIN GPIO_NUM_39
 #define KEY_UP_PIN    GPIO_NUM_34
 #define KEY_DOWN_PIN  GPIO_NUM_35
-#define KEY_ENTER_PIN GPIO_NUM_33
+#define KEY_ENTER_PIN GPIO_NUM_32
 #define PIN_MASK (1ULL << KEY_LEFT_PIN) | (1ULL << KEY_RIGHT_PIN) | (1ULL << KEY_UP_PIN) | (1ULL << KEY_DOWN_PIN) | (1ULL << KEY_ENTER_PIN)
 
 /******************** ESTRUTURAS *******************/
@@ -219,7 +219,7 @@ static const char * TCS230_TAG = "TCS230";
 static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
-static const char * versao = "1.3.1";
+static const char * versao = "1.3.2";
 
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
@@ -1122,7 +1122,7 @@ void gpioBegin(){
     gpio_config_t io_config = {                 // Configuração do pino de interrupção
         .pin_bit_mask = PIN_MASK,               // Máscara de seleção dos pinos
         .mode         = GPIO_MODE_INPUT,        // Modo de operação do pino
-        .pull_up_en   = GPIO_PULLUP_DISABLE,     // Habilita resistor de pull-up
+        .pull_up_en   = GPIO_PULLUP_ENABLE,     // Habilita resistor de pull-up
         .pull_down_en = GPIO_PULLDOWN_DISABLE,  // Desabilita resistor de pull-down
         .intr_type    = GPIO_INTR_NEGEDGE      // Tipo de interrupção
     };
