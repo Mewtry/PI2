@@ -57,7 +57,13 @@
 
 // COMUNICAÇÂO SERIAL UART
 #define UART_NUM UART_NUM_0
+#define UART_BAUND_RATE 9600
 #define BUF_SIZE (1024)
+
+// HARDWARESERIAL - Pinos 4 (RX) e 2 (TX) - UART1
+#define HWSERIAL_RX_PIN 4
+#define HWSERIAL_TX_PIN 2
+#define HWSERIAL_NUM 1
 
 // BOTÕES DA IHM
 #define DEBOUNCING 250
@@ -172,6 +178,7 @@ typedef struct {
     uint32_t   last_key_pressed;
     uint32_t   last_time_key_pressed;
     gpio_num_t button_pins[8];
+    char       data[8];
 } ihm_config_t;
 typedef struct {
     esteira_config_t  esteira;
@@ -277,9 +284,10 @@ app_config_t app = {
         .key_pressed           = KEY_NONE,
         .last_key_pressed      = KEY_NONE,
         .last_time_key_pressed = 0,
-        .button_pins           = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN}
+        .button_pins           = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN},
+        .data                  = "       "
     },
-    .operation_mode   = PADRAO,
+    .operation_mode   = SIMPLES,
     .operation_mode_printable = {
         "PADRAO ",
         "SIMPLES",
@@ -822,8 +830,11 @@ void monitoramento() {
     lcd.setCursor(0,3);
     lcd.print("B~");
     lcd.print(app.qtd_pecas[BLUE]);
-    lcd.print("|PECAS/MIN: ");
-    lcd.print(digitalRead(KEY_UP_PIN));
+    // lcd.print("|PECAS/MIN: ");
+    // lcd.print(digitalRead(KEY_UP_PIN));
+    lcd.print("|COMANDO:       ");
+    lcd.setCursor(13,3);
+    lcd.print(app.ihm.data);
     switch (app.magazine.position)
     {
     case RED:
@@ -1094,7 +1105,7 @@ void nvsBegin(){
 void uartBegin(){
     // Cria a estrutura com dados de configuração da UART
     uart_config_t uart_config = {
-        .baud_rate = 115200,
+        .baud_rate = UART_BAUND_RATE,
         .data_bits = UART_DATA_8_BITS,
         .parity    = UART_PARITY_DISABLE,
         .stop_bits  = UART_STOP_BITS_1,
@@ -1114,8 +1125,11 @@ void uartBegin(){
     //uart_enable_pattern_det_intr(EX_UART_NUM, 0x0a, 3, 10000, 10, 10); // Função desatualizada
     uart_enable_pattern_det_baud_intr(UART_NUM, 0x0a, 1, 9, 0, 0); 
 
+    // Inicializa HardwareSerial UART1
+    Serial1.begin(UART_BAUND_RATE, SERIAL_8N1, HWSERIAL_RX_PIN, HWSERIAL_TX_PIN);
+
     // Cria a task no nucleo 0 com prioridade 1
-    xTaskCreate(uart_event_task, "uart_event_task", 4096, NULL, 4, NULL);
+    xTaskCreate(uart_event_task, "uart_event_task", configMINIMAL_STACK_SIZE * 3, NULL, 8, NULL);
 
 } // end uart_init
 void gpioBegin(){
@@ -1124,7 +1138,7 @@ void gpioBegin(){
         .mode         = GPIO_MODE_INPUT,        // Modo de operação do pino
         .pull_up_en   = GPIO_PULLUP_ENABLE,     // Habilita resistor de pull-up
         .pull_down_en = GPIO_PULLDOWN_DISABLE,  // Desabilita resistor de pull-down
-        .intr_type    = GPIO_INTR_NEGEDGE      // Tipo de interrupção
+        .intr_type    = GPIO_INTR_NEGEDGE       // Tipo de interrupção
     };
 
     gpio_config(&io_config);                    // Chama a função para configurar o GPIO
@@ -1145,7 +1159,8 @@ void gpioBegin(){
 
 /*===============JSON===============*/
 void simpleResponseOK(){
-    printf("Comando recebido!\r\n");
+    // printf("Comando recebido!\r\n");
+    Serial1.println("OK");
 }
 void responseOK(){
     char * output = (char *) malloc((sizeof(char) * 50));
@@ -1170,9 +1185,19 @@ void responseError( uint8_t code, const char * message){
 }
 void simpleSendSensor(){
     tcs.read();
-    if(tcs.getColor() == RED) printf("R\r\n");
-    else if(tcs.getColor() == GREEN) printf("G\r\n");
-    else if(tcs.getColor() == BLUE) printf("B\r\n");
+    tcs.getRGB(&app.tcs.rgb);
+    if(tcs.getColor() == RED) {
+      Serial1.print("R");
+      // printf("R");
+    }
+    else if(tcs.getColor() == GREEN) {
+      Serial1.print("G");
+      // printf("G");
+    }
+    else if(tcs.getColor() == BLUE) {
+      Serial1.print("B");
+      // printf("B");
+    }
 }
 void sendSensorJson(){
     char * output = (char *) malloc((sizeof(char) * 200));
@@ -1191,18 +1216,19 @@ void sendSensorJson(){
 void trataComandoRecebido(uint8_t * dt){
     // printf("Dado em tratamento: %s\r\n", dt);
     if(dt[0] == 'v' || dt[0] == 'V'){
-        printf("Versao: %s\r\n", versao);
+        // printf("Versao: %s\r\n", versao);
+        Serial1.println(versao);
         return;
     }
     else if(app.operation_mode == SIMPLES){
       if(dt[0] == 'c' || dt[0] == 'C') { // Comando Start
           app.status = RUNNING;
+          moverEsteira();
           simpleResponseOK();
           return;
       }
       else if(dt[0] == 'p' || dt[0] == 'P') { // Comando Parar
           pararEsteira();
-          app.status = STATE_OK;
           simpleResponseOK();
           return;
       }
@@ -1226,8 +1252,11 @@ void trataComandoRecebido(uint8_t * dt){
       }
       else if(dt[0] == 'e' || dt[0] == 'E') { // Comando de toggle da esteira
           if(app.esteira.is_running) pararEsteira();
-          else moverEsteira();
-          simpleResponseOK();
+          else {
+            app.status = RUNNING;
+            moverEsteira();
+          }
+            simpleResponseOK();
           return;
       }
       else if(dt[0] == 's' || dt[0] == 'S') { // Comando para sentido da esteira
@@ -1370,45 +1399,42 @@ void trataComandoRecebido(uint8_t * dt){
 
 // Task que monitora os eventos UART e trata cada um deles
 static void uart_event_task(void *pvParameters){
-    // Cria um manipulador de evento
-    uart_event_t event;
-
     // Aloca o buffer de memória, do tamanho epecificado em BUF_SIZE
     uint8_t *data = (uint8_t *) malloc(BUF_SIZE+1);
+    // Limpa o buffer alocado para evitar lixo de memória
+    memset(data, 0, BUF_SIZE+1);
     int len = 0;
+    int index = 0;
 
     while(1){
-        // Primeiro aguardamos pela ocorrência de um evento e depois analisamos seu tipo
-        if (xQueueReceive(uart_queue, (void *) &event, pdMS_TO_TICKS(100))){
-            // Ocorreu um evento, então devemos analisar seu tipo e então finalizar o loop
-            switch (event.type)
-            {
-            case UART_DATA:
-                len = uart_read_bytes(UART_NUM, data, BUF_SIZE, 200 / portTICK_RATE_MS);
+        // Lê dados da HardwareSerial (Serial1)
+        if (Serial1.available() > 0) {
+            uint8_t c = Serial1.read();
+            data[index] = c;
+            index++;
+            
+            // Verifica se recebeu um delimitador (\n, \r ou espaço)
+            if (c == '\n' || c == '\r' || c == ' ' || index >= BUF_SIZE) {
+                len = index;
                 if(len > 0){
-                    data[len] = '\0';  // Trunca o buffer para trabalhar como uma string                   
+                    // data[len] = '\0';  // Trunca o buffer para trabalhar como uma string                   
                     // printf("Dado recebido: %s\r\n", data); // DEBUG
+                    // Serial1.println((char *)data);
+                    memset(app.ihm.data, 0, 8);
+                    strncpy(app.ihm.data, (const char *)data, 6);
+                    // app.ihm.data[5] = '\0';
                     if(data[len-1] == '\n' || data[len-1] == '\r' || data[len-1] == ' '){
-                        data[len-1] = 0;
+                        data[len-1] = '\0';
                         trataComandoRecebido(data);
                     }
                 }
-                break;
-            case UART_FIFO_OVF:
-                ESP_LOGE(UART_TAG, "Evento: hw overflow");
-                uart_flush(UART_NUM);
-                break;
-            case UART_BUFFER_FULL:
-                // Neste caso o dado provavelmente não estará completo, devemos tratá-lo para não perder info
-                ESP_LOGW(UART_TAG, "Evento: Dado > buffer");
-                uart_flush(UART_NUM);
-                break;
-            default:
-                // Evento desconhecido
-                ESP_LOGE(UART_TAG, "Evento: Erro desconhecido");
-                break;
+                index = 0;
+                len = 0;
+                memset(data, 0, BUF_SIZE+1);
             }
         }
+      
+        vTaskDelay(10 / portTICK_RATE_MS); // Pequeno delay para não sobrecarregar a task
     }
     // Desacola a memória dinâmica criada na task
     free(data);
@@ -1417,7 +1443,8 @@ static void uart_event_task(void *pvParameters){
     vTaskDelete(NULL);
 } // end uart_event_task
 
-static void ihm_event_task(void *pvParameters){
+// Task que monitora os eventos GPIO
+static void ihm_event_task(void *pvParameters) {
    while(true){
         if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, portMAX_DELAY)){ // Aguarda por um evento de acionamento de botão da IHM
             if( ! digitalRead(app.ihm.key_pressed) && 
@@ -1454,7 +1481,7 @@ static void ihm_event_task(void *pvParameters){
     vTaskDelete(NULL);
 }
 
-static void principal_task(void *pvParameters){
+static void principal_task(void *pvParameters) {
     while(true){
         // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING        
         if(app.operation_mode != EXPERT && app.operation_mode != SIMPLES && app.status == RUNNING){
@@ -1481,7 +1508,7 @@ static void principal_task(void *pvParameters){
                 app.tcs.last_color = tcs.getColor();
             }
         }
-        else if(app.operation_mode != EXPERT && app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
+        else if(app.operation_mode != EXPERT && app.operation_mode != SIMPLES && app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
         else if(app.operation_mode == SIMPLES) simpleSendSensor();
         else if(app.operation_mode == EXPERT) sendSensorJson();
 
@@ -1507,7 +1534,7 @@ static void principal_task(void *pvParameters){
 //     vTaskDelete(NULL);
 // }
 /********************** SETUP **********************/
-void setup(void){
+void setup(void) {
     // Configura Uart e GPIO
     nvsBegin();
     uartBegin();
@@ -1550,11 +1577,11 @@ void setup(void){
     else app.status = STATE_OK;
 
     // Cria a task principal com prioridade 3
-    xTaskCreate(ihm_event_task, "ihm_event_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL);
+    xTaskCreate(ihm_event_task, "ihm_event_task", configMINIMAL_STACK_SIZE * 3, NULL, 4, NULL);
     xTaskCreate(principal_task, "principal_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL); 
 }
 /********************** LOOP **********************/
-void loop(void){
+void loop(void) {
     // Bloqueia a task loop, todo o processamento ocorre nas demais tasks
     vTaskDelay(portMAX_DELAY);
 }
