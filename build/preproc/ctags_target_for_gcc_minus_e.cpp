@@ -52,8 +52,14 @@
 
 
 
+
+// HARDWARESERIAL - Pinos 4 (RX) e 2 (TX) - UART1
+
+
+
+
 // BOTÕES DA IHM
-# 71 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 77 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
 /******************** ESTRUTURAS *******************/
 
 // Enumerações
@@ -158,6 +164,7 @@ typedef struct {
     uint32_t last_key_pressed;
     uint32_t last_time_key_pressed;
     gpio_num_t button_pins[8];
+    char data[8];
 } ihm_config_t;
 typedef struct {
     esteira_config_t esteira;
@@ -210,9 +217,9 @@ static const char * versao = "1.3.2";
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
 static QueueHandle_t gpio_event_queue = 
-# 226 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 233 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                        __null
-# 226 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 233 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                            ;
 
 // declaração das estruturas de app e aluno
@@ -267,9 +274,10 @@ app_config_t app = {
         .key_pressed = KEY_NONE,
         .last_key_pressed = KEY_NONE,
         .last_time_key_pressed = 0,
-        .button_pins = {GPIO_NUM_36, GPIO_NUM_39, GPIO_NUM_34, GPIO_NUM_35, GPIO_NUM_32}
+        .button_pins = {GPIO_NUM_36, GPIO_NUM_39, GPIO_NUM_34, GPIO_NUM_35, GPIO_NUM_32},
+        .data = "       "
     },
-    .operation_mode = PADRAO,
+    .operation_mode = SIMPLES,
     .operation_mode_printable = {
         "PADRAO ",
         "SIMPLES",
@@ -378,9 +386,9 @@ static void __attribute__((section(".iram1" "." "28"))) gpio_isr_handler(void *a
 
         uint32_t gpio_num = (uint32_t) arg;
         xQueueGenericSendFromISR( ( gpio_event_queue ), ( &gpio_num ), ( 
-# 390 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 398 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
        __null 
-# 390 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 398 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
        ), ( ( BaseType_t ) 0 ) );
     }
 }
@@ -816,8 +824,11 @@ void monitoramento() {
     lcd.setCursor(0,3);
     lcd.print("B~");
     lcd.print(app.qtd_pecas[BLUE]);
-    lcd.print("|PECAS/MIN: ");
-    lcd.print(digitalRead(GPIO_NUM_34));
+    // lcd.print("|PECAS/MIN: ");
+    // lcd.print(digitalRead(KEY_UP_PIN));
+    lcd.print("|COMANDO:       ");
+    lcd.setCursor(13,3);
+    lcd.print(app.ihm.data);
     switch (app.magazine.position)
     {
     case RED:
@@ -1088,7 +1099,7 @@ void nvsBegin(){
 void uartBegin(){
     // Cria a estrutura com dados de configuração da UART
     uart_config_t uart_config = {
-        .baud_rate = 115200,
+        .baud_rate = 9600,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
@@ -1108,16 +1119,19 @@ void uartBegin(){
     //uart_enable_pattern_det_intr(EX_UART_NUM, 0x0a, 3, 10000, 10, 10); // Função desatualizada
     uart_enable_pattern_det_baud_intr((0) /*!< UART port 0 */, 0x0a, 1, 9, 0, 0);
 
+    // Inicializa HardwareSerial UART1
+    Serial1.begin(9600, SERIAL_8N1, 4, 2);
+
     // Cria a task no nucleo 0 com prioridade 1
-    xTaskCreate(uart_event_task, "uart_event_task", 4096, 
-# 1118 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
-                                                         __null
-# 1118 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
-                                                             , 4, 
-# 1118 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
-                                                                  __null
-# 1118 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
-                                                                      );
+    xTaskCreate(uart_event_task, "uart_event_task", (768 + ( 0 + 0 + 0 + 60 )) * 3, 
+# 1132 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                                                                 __null
+# 1132 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+                                                                                     , 8, 
+# 1132 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                                                                                          __null
+# 1132 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+                                                                                              );
 
 } // end uart_init
 void gpioBegin(){
@@ -1147,7 +1161,8 @@ void gpioBegin(){
 
 /*===============JSON===============*/
 void simpleResponseOK(){
-    printf("Comando recebido!\r\n");
+    // printf("Comando recebido!\r\n");
+    Serial1.println("OK");
 }
 void responseOK(){
     char * output = (char *) malloc((sizeof(char) * 50));
@@ -1172,9 +1187,19 @@ void responseError( uint8_t code, const char * message){
 }
 void simpleSendSensor(){
     tcs.read();
-    if(tcs.getColor() == RED) printf("R\r\n");
-    else if(tcs.getColor() == GREEN) printf("G\r\n");
-    else if(tcs.getColor() == BLUE) printf("B\r\n");
+    tcs.getRGB(&app.tcs.rgb);
+    if(tcs.getColor() == RED) {
+      Serial1.print("R");
+      // printf("R");
+    }
+    else if(tcs.getColor() == GREEN) {
+      Serial1.print("G");
+      // printf("G");
+    }
+    else if(tcs.getColor() == BLUE) {
+      Serial1.print("B");
+      // printf("B");
+    }
 }
 void sendSensorJson(){
     char * output = (char *) malloc((sizeof(char) * 200));
@@ -1193,18 +1218,19 @@ void sendSensorJson(){
 void trataComandoRecebido(uint8_t * dt){
     // printf("Dado em tratamento: %s\r\n", dt);
     if(dt[0] == 'v' || dt[0] == 'V'){
-        printf("Versao: %s\r\n", versao);
+        // printf("Versao: %s\r\n", versao);
+        Serial1.println(versao);
         return;
     }
     else if(app.operation_mode == SIMPLES){
       if(dt[0] == 'c' || dt[0] == 'C') { // Comando Start
           app.status = RUNNING;
+          moverEsteira();
           simpleResponseOK();
           return;
       }
       else if(dt[0] == 'p' || dt[0] == 'P') { // Comando Parar
           pararEsteira();
-          app.status = STATE_OK;
           simpleResponseOK();
           return;
       }
@@ -1228,8 +1254,11 @@ void trataComandoRecebido(uint8_t * dt){
       }
       else if(dt[0] == 'e' || dt[0] == 'E') { // Comando de toggle da esteira
           if(app.esteira.is_running) pararEsteira();
-          else moverEsteira();
-          simpleResponseOK();
+          else {
+            app.status = RUNNING;
+            moverEsteira();
+          }
+            simpleResponseOK();
           return;
       }
       else if(dt[0] == 's' || dt[0] == 'S') { // Comando para sentido da esteira
@@ -1372,70 +1401,64 @@ void trataComandoRecebido(uint8_t * dt){
 
 // Task que monitora os eventos UART e trata cada um deles
 static void uart_event_task(void *pvParameters){
-    // Cria um manipulador de evento
-    uart_event_t event;
-
     // Aloca o buffer de memória, do tamanho epecificado em BUF_SIZE
     uint8_t *data = (uint8_t *) malloc((1024)+1);
+    // Limpa o buffer alocado para evitar lixo de memória
+    memset(data, 0, (1024)+1);
     int len = 0;
+    int index = 0;
 
     while(1){
-        // Primeiro aguardamos pela ocorrência de um evento e depois analisamos seu tipo
-        if (xQueueReceive(uart_queue, (void *) &event, ( ( TickType_t ) ( ( ( TickType_t ) ( 100 ) * ( TickType_t ) ( 
-# 1382 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
-                                                      1000 
-# 1382 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
-                                                      ) ) / ( TickType_t ) 1000U ) ))){
-            // Ocorreu um evento, então devemos analisar seu tipo e então finalizar o loop
-            switch (event.type)
-            {
-            case UART_DATA:
-                len = uart_read_bytes((0) /*!< UART port 0 */, data, (1024), 200 / ( ( TickType_t ) 1000 / ( 
-# 1387 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
-                                                                     1000 
-# 1387 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
-                                                                     ) ));
+        // Lê dados da HardwareSerial (Serial1)
+        if (Serial1.available() > 0) {
+            uint8_t c = Serial1.read();
+            data[index] = c;
+            index++;
+
+            // Verifica se recebeu um delimitador (\n, \r ou espaço)
+            if (c == '\n' || c == '\r' || c == ' ' || index >= (1024)) {
+                len = index;
                 if(len > 0){
-                    data[len] = '\0'; // Trunca o buffer para trabalhar como uma string                   
+                    // data[len] = '\0';  // Trunca o buffer para trabalhar como uma string                   
                     // printf("Dado recebido: %s\r\n", data); // DEBUG
+                    // Serial1.println((char *)data);
+                    memset(app.ihm.data, 0, 8);
+                    strncpy(app.ihm.data, (const char *)data, 6);
+                    // app.ihm.data[5] = '\0';
                     if(data[len-1] == '\n' || data[len-1] == '\r' || data[len-1] == ' '){
-                        data[len-1] = 0;
+                        data[len-1] = '\0';
                         trataComandoRecebido(data);
                     }
                 }
-                break;
-            case UART_FIFO_OVF:
-                do {} while(0);
-                uart_flush((0) /*!< UART port 0 */);
-                break;
-            case UART_BUFFER_FULL:
-                // Neste caso o dado provavelmente não estará completo, devemos tratá-lo para não perder info
-                do {} while(0);
-                uart_flush((0) /*!< UART port 0 */);
-                break;
-            default:
-                // Evento desconhecido
-                do {} while(0);
-                break;
+                index = 0;
+                len = 0;
+                memset(data, 0, (1024)+1);
             }
         }
+
+        vTaskDelay(10 / ( ( TickType_t ) 1000 / ( 
+# 1437 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+                       1000 
+# 1437 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+                       ) )); // Pequeno delay para não sobrecarregar a task
     }
     // Desacola a memória dinâmica criada na task
     free(data);
     data = 
-# 1415 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1441 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
           __null
-# 1415 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1441 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
               ;
     // Deleta a task após a sua conclusão
     vTaskDelete(
-# 1417 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1443 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1417 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1443 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                    );
 } // end uart_event_task
 
-static void ihm_event_task(void *pvParameters){
+// Task que monitora os eventos GPIO
+static void ihm_event_task(void *pvParameters) {
    while(true){
         if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, ( TickType_t ) 0xffffffffUL)){ // Aguarda por um evento de acionamento de botão da IHM
             if( ! digitalRead(app.ihm.key_pressed) &&
@@ -1470,13 +1493,13 @@ static void ihm_event_task(void *pvParameters){
     }
     // Deleta a task caso saia do loop
     vTaskDelete(
-# 1454 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1481 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1454 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1481 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                    );
 }
 
-static void principal_task(void *pvParameters){
+static void principal_task(void *pvParameters) {
     while(true){
         // Rotina de leitura do sensor de cores caso o sistema esteja em modo RUNNING        
         if(app.operation_mode != EXPERT && app.operation_mode != SIMPLES && app.status == RUNNING){
@@ -1503,23 +1526,23 @@ static void principal_task(void *pvParameters){
                 app.tcs.last_color = tcs.getColor();
             }
         }
-        else if(app.operation_mode != EXPERT && app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
+        else if(app.operation_mode != EXPERT && app.operation_mode != SIMPLES && app.ihm.tela_atual != MENU_ESTEIRA) pararEsteira();
         else if(app.operation_mode == SIMPLES) simpleSendSensor();
         else if(app.operation_mode == EXPERT) sendSensorJson();
 
         atualizaTela(); // Atualiza o display LCD
         // Modula o tempo de atualização do display e leitura do sensor de cores
         vTaskDelay((app.status == RUNNING ? 250 : 500) / ( ( TickType_t ) 1000 / ( 
-# 1490 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1517 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                         1000 
-# 1490 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1517 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                         ) ));
     }
     // Deleta a task caso saia do loop
     vTaskDelete(
-# 1493 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1520 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                __null
-# 1493 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1520 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                    );
 }
 
@@ -1537,7 +1560,7 @@ static void principal_task(void *pvParameters){
 //     vTaskDelete(NULL);
 // }
 /********************** SETUP **********************/
-void setup(void){
+void setup(void) {
     // Configura Uart e GPIO
     nvsBegin();
     uartBegin();
@@ -1581,26 +1604,26 @@ void setup(void){
 
     // Cria a task principal com prioridade 3
     xTaskCreate(ihm_event_task, "ihm_event_task", (768 + ( 0 + 0 + 0 + 60 )) * 3, 
-# 1553 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1580 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                __null
-# 1553 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
-                                                                                   , 3, 
-# 1553 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1580 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+                                                                                   , 4, 
+# 1580 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                         __null
-# 1553 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1580 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                                             );
     xTaskCreate(principal_task, "principal_task", (768 + ( 0 + 0 + 0 + 60 )) * 3, 
-# 1554 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1581 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                __null
-# 1554 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1581 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                                    , 3, 
-# 1554 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
+# 1581 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino" 3 4
                                                                                         __null
-# 1554 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
+# 1581 "C:\\workspace\\IFSC\\PI2\\MYT_600\\MYT_600.ino"
                                                                                             );
 }
 /********************** LOOP **********************/
-void loop(void){
+void loop(void) {
     // Bloqueia a task loop, todo o processamento ocorre nas demais tasks
     vTaskDelay(( TickType_t ) 0xffffffffUL);
 }
