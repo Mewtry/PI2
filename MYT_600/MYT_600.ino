@@ -67,14 +67,16 @@
 #define UART_NUM UART_NUM_0
 #define BUF_SIZE (1024)
 
-// BOTÕES DA IHM
-#define DEBOUNCING 250
+// BOTÕES DA IHM / ENCODER ROTATIVO
+#define DEBOUNCING    250
+#define SW_DEBOUNCING 100
 #define KEY_LEFT_PIN  GPIO_NUM_36
 #define KEY_RIGHT_PIN GPIO_NUM_39
-#define KEY_UP_PIN    GPIO_NUM_34
-#define KEY_DOWN_PIN  GPIO_NUM_35
-#define KEY_ENTER_PIN GPIO_NUM_32
-#define PIN_MASK (1ULL << KEY_LEFT_PIN) | (1ULL << KEY_RIGHT_PIN) | (1ULL << KEY_UP_PIN) | (1ULL << KEY_DOWN_PIN) | (1ULL << KEY_ENTER_PIN)
+#define KEY_UP_PIN    GPIO_NUM_34 // Encoder canal A
+#define KEY_DOWN_PIN  GPIO_NUM_35 // Encoder canal B
+#define KEY_ENTER_PIN GPIO_NUM_32 // Encoder SW
+#define PIN_MASK_BUTTONS ((1ULL << KEY_LEFT_PIN) | (1ULL << KEY_RIGHT_PIN))
+#define PIN_MASK_ENCODER ((1ULL << KEY_UP_PIN) | (1ULL << KEY_DOWN_PIN) | (1ULL << KEY_ENTER_PIN))
 
 /******************** ESTRUTURAS *******************/
 
@@ -187,16 +189,24 @@ typedef struct {
     bool state;
 } indutivo_config_t;
 typedef struct {
+    uint32_t pin;
+    uint8_t  ab_state; // Botões: nível lógico; Encoder A/B: (A<<1)|B; Encoder SW: nível lógico
+} gpio_event_t;
+typedef struct {
     uint16_t   tela_atual;
-    uint8_t    tela_anterior;
+    uint16_t   tela_anterior;
     uint8_t    linha_atual;
     uint8_t    linha_min;
     uint8_t    linha_max;
     bool       linha_selecionada;
-    uint32_t   key_pressed; // mudar para uint8_t ?
+    uint32_t   key_pressed;
     uint32_t   last_key_pressed;
     uint32_t   last_time_key_pressed;
     gpio_num_t button_pins[8];
+    uint8_t    enc_prev_state;   // Estado anterior do encoder (A<<1|B)
+    int8_t     enc_dir_accum;    // Acumulador de direção do encoder
+    uint8_t    enc_sw_state;     // Último estado lógico do botão SW
+    uint32_t   enc_sw_last_time; // Último tempo de acionamento do SW
 } ihm_config_t;
 typedef struct {
     esteira_config_t  esteira;
@@ -248,7 +258,17 @@ static const char * TCS230_TAG = "TCS230";
 static const char * ESTEIRA_TAG = "ESTEIRA";
 static const char * MAGAZINE_TAG = "MAGAZINE";
 
-static const char * versao = "1.4.0";
+static const char * versao = "2.0.0";
+
+// Tabela de decodificação de quadratura do encoder rotativo
+// Índice = (estado_anterior << 2) | estado_atual, onde estado = (A << 1) | B
+// +1 = CW (keyUp), -1 = CCW (keyDown), 0 = transição inválida ou ruído
+static const int8_t ENC_TABLE[16] = {
+    0, +1, -1, 0,
+   -1,  0,  0, +1,
+   +1,  0,  0, -1,
+    0, -1, +1,  0
+};
 
 // declaração das filas de interrupção e uart
 static QueueHandle_t uart_queue;
@@ -313,7 +333,11 @@ app_config_t app = {
         .key_pressed           = KEY_NONE,
         .last_key_pressed      = KEY_NONE,
         .last_time_key_pressed = 0,
-        .button_pins           = {KEY_LEFT_PIN, KEY_RIGHT_PIN, KEY_UP_PIN, KEY_DOWN_PIN, KEY_ENTER_PIN}
+        .button_pins           = {KEY_LEFT_PIN, KEY_RIGHT_PIN},
+        .enc_prev_state        = 0,
+        .enc_dir_accum         = 0,
+        .enc_sw_state          = HIGH,
+        .enc_sw_last_time      = 0
     },
     .operation_mode   = PADRAO,
     .sensor_mode      = ALTURA,
@@ -423,12 +447,22 @@ uint8_t pow_2[8] = {
 
 /******************** INTERRUPTS ********************/
 
-// Função de interrupção para eventos da UART
+// Função de interrupção para eventos de GPIO (botões e encoder)
 static void IRAM_ATTR gpio_isr_handler(void *arg){
     if(xQueueIsQueueFullFromISR(gpio_event_queue) == pdFALSE) {
-
-        uint32_t gpio_num = (uint32_t) arg;
-        xQueueSendFromISR(gpio_event_queue, &gpio_num, NULL);
+        gpio_event_t event;
+        event.pin = (uint32_t) arg;
+        if(event.pin == (uint32_t)KEY_ENTER_PIN) {
+            // SW do encoder: captura nível atual do pino
+            event.ab_state = (uint8_t) gpio_get_level(KEY_ENTER_PIN);
+        } else if(event.pin == (uint32_t)KEY_UP_PIN || event.pin == (uint32_t)KEY_DOWN_PIN) {
+            // Encoder A/B: lê ambos simultaneamente para estado coerente
+            event.ab_state = (uint8_t)((gpio_get_level(KEY_UP_PIN) << 1) | gpio_get_level(KEY_DOWN_PIN));
+        } else {
+            // Botões LEFT/RIGHT: estado confirmado via digitalRead na task
+            event.ab_state = 0;
+        }
+        xQueueSendFromISR(gpio_event_queue, &event, NULL);
     }
 }
 
@@ -593,7 +627,7 @@ void keyRight(){
 }
 void keyUp(){
     if(app.ihm.linha_max != 0 && app.ihm.linha_selecionada == false)
-        app.ihm.linha_atual > app.ihm.linha_min ? app.ihm.linha_atual-- : app.ihm.linha_atual = app.ihm.linha_max;
+        if(app.ihm.linha_atual > app.ihm.linha_min) app.ihm.linha_atual--;
 
     if(app.ihm.tela_atual == MENU_ESTEIRA){
         app.esteira.duty_acionamento < app.esteira.duty_max-100 ? app.esteira.duty_acionamento+=100 : app.esteira.duty_acionamento = app.esteira.duty_max;
@@ -626,7 +660,7 @@ void keyUp(){
         else if(app.ihm.linha_atual == 3)
             app.magazine.steps_per_rev < 60 ? app.magazine.steps_per_rev++ : app.magazine.steps_per_rev = 60;
     }
-    else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_selecionada) {
+    else if(app.ihm.tela_atual == MENU_CAL_SENSOR_COR && app.ihm.linha_selecionada) {
         if(app.ihm.linha_atual == 3) {
             app.tcs.read_time < 900 ? app.tcs.read_time+=100 : app.tcs.read_time = 1000;
             tcs.setSampling(app.tcs.read_time);
@@ -635,7 +669,7 @@ void keyUp(){
 }
 void keyDown(){
     if(app.ihm.linha_max != 0 && app.ihm.linha_selecionada == false)
-        app.ihm.linha_atual < app.ihm.linha_max ? app.ihm.linha_atual++ : app.ihm.linha_atual = app.ihm.linha_min;
+        if(app.ihm.linha_atual < app.ihm.linha_max) app.ihm.linha_atual++;
 
     if(app.ihm.tela_atual == MENU_ESTEIRA){
         app.esteira.duty_acionamento > 100 ? app.esteira.duty_acionamento-=100 : app.esteira.duty_acionamento = 0;
@@ -665,7 +699,7 @@ void keyDown(){
         else if(app.ihm.linha_atual == 3)
             app.magazine.steps_per_rev > 20 ? app.magazine.steps_per_rev-- : app.magazine.steps_per_rev = 20;
     }
-    else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_selecionada) {
+    else if(app.ihm.tela_atual == MENU_CAL_SENSOR_COR && app.ihm.linha_selecionada) {
         if(app.ihm.linha_atual == 3) {
             app.tcs.read_time > 200 ? app.tcs.read_time-=100 : app.tcs.read_time = 100;
             tcs.setSampling(app.tcs.read_time);
@@ -698,7 +732,7 @@ void keyEnter(){
         app.operation_mode < EXPERT ? app.operation_mode++ : app.operation_mode = PADRAO;
         
     else if(app.ihm.tela_atual == MENU_CAL_SENSOR && app.ihm.linha_atual == 0)
-        app.sensor_mode < MATERIAL ? app.sensor_mode++ : app.sensor_mode == COR;
+        app.sensor_mode < MATERIAL ? app.sensor_mode++ : app.sensor_mode = COR;
 
     else if(app.ihm.tela_atual == MENU_ESTEIRA || app.ihm.tela_atual == MENU_MAGAZINE){
         app.ihm.tela_atual = app.ihm.tela_atual / 10;
@@ -1182,26 +1216,40 @@ void uartBegin(){
 
 } // end uart_init
 void gpioBegin(){
-    gpio_config_t io_config = {                 // Configuração do pino de interrupção
-        .pin_bit_mask = PIN_MASK,               // Máscara de seleção dos pinos
-        .mode         = GPIO_MODE_INPUT,        // Modo de operação do pino
-        .pull_up_en   = GPIO_PULLUP_DISABLE,    // Habilita resistor de pull-up
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,  // Desabilita resistor de pull-down
-        .intr_type    = GPIO_INTR_NEGEDGE       // Tipo de interrupção
+    // Configuração dos botões LEFT e RIGHT (borda de descida, sem pull-up externo)
+    gpio_config_t io_config_buttons = {
+        .pin_bit_mask = PIN_MASK_BUTTONS,
+        .mode         = GPIO_MODE_INPUT,
+        .pull_up_en   = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type    = GPIO_INTR_NEGEDGE
     };
+    gpio_config(&io_config_buttons);
 
-    gpio_config(&io_config);                    // Chama a função para configurar o GPIO
+    // Configuração dos pinos do encoder A, B e SW (qualquer borda, pull-up habilitado)
+    gpio_config_t io_config_encoder = {
+        .pin_bit_mask = PIN_MASK_ENCODER,
+        .mode         = GPIO_MODE_INPUT,
+        .pull_up_en   = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type    = GPIO_INTR_ANYEDGE
+    };
+    gpio_config(&io_config_encoder);
 
-    // Cria um fila de eventos para lidar com as interrupções do GPIO
-    gpio_event_queue = xQueueCreate(10, sizeof(uint32_t));
+    // Cria a fila de eventos para lidar com as interrupções do GPIO
+    gpio_event_queue = xQueueCreate(20, sizeof(gpio_event_t));
 
     // Instala o manipulador de interrupção GPIO
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL2);
 
-    // Configura o manipulador de interrupção GPIO
-    for(int i = 0; i < 5; i++){
-        gpio_isr_handler_add(app.ihm.button_pins[i], gpio_isr_handler, (void *) app.ihm.button_pins[i]);
-    }
+    // Registra ISR para os botões LEFT e RIGHT
+    gpio_isr_handler_add(KEY_LEFT_PIN,  gpio_isr_handler, (void *) KEY_LEFT_PIN);
+    gpio_isr_handler_add(KEY_RIGHT_PIN, gpio_isr_handler, (void *) KEY_RIGHT_PIN);
+
+    // Registra ISR para os pinos do encoder (A = KEY_UP_PIN, B = KEY_DOWN_PIN, SW = KEY_ENTER_PIN)
+    gpio_isr_handler_add(KEY_UP_PIN,    gpio_isr_handler, (void *) KEY_UP_PIN);
+    gpio_isr_handler_add(KEY_DOWN_PIN,  gpio_isr_handler, (void *) KEY_DOWN_PIN);
+    gpio_isr_handler_add(KEY_ENTER_PIN, gpio_isr_handler, (void *) KEY_ENTER_PIN);
 
     // Configura os pinos do sensor ultrassônico
     gpio_set_direction(HCSR04_TRIG_PIN, GPIO_MODE_OUTPUT);
@@ -1273,7 +1321,8 @@ void trataComandoRecebido(uint8_t * dt){
             }
             else if( ! strcmp(jsonType, "emulate")){
                 uint32_t key = json_IN["key"];
-                xQueueSend(gpio_event_queue, &key, 0);
+                gpio_event_t event = { .pin = key, .ab_state = 0xFF }; // 0xFF = evento emulado direto
+                xQueueSend(gpio_event_queue, &event, 0);
                 responseOK();
                 return;
             }
@@ -1437,34 +1486,73 @@ static void uart_event_task(void *pvParameters){
 } // end uart_event_task
 
 static void ihm_event_task(void *pvParameters){
-   while(true){
-        if(xQueueReceive(gpio_event_queue, &app.ihm.key_pressed, portMAX_DELAY)){ // Aguarda por um evento de acionamento de botão da IHM
-            if( ! digitalRead(app.ihm.key_pressed) && 
-                (app.ihm.last_key_pressed != app.ihm.key_pressed || 
-                app.ihm.last_time_key_pressed + DEBOUNCING <= millis())){
+    gpio_event_t event;
+    // Lê o estado inicial do encoder para evitar falsa transição na primeira interrupção
+    app.ihm.enc_prev_state = (uint8_t)((gpio_get_level(KEY_UP_PIN) << 1) | gpio_get_level(KEY_DOWN_PIN));
 
-                app.ihm.last_key_pressed = app.ihm.key_pressed;
-                app.ihm.last_time_key_pressed = millis();
+    while(true){
+        if(xQueueReceive(gpio_event_queue, &event, portMAX_DELAY)){
 
-                switch (app.ihm.key_pressed)
-                {
-                case KEY_LEFT_PIN:
-                    keyLeft();
-                    break;
-                case KEY_RIGHT_PIN:
-                    keyRight();
-                    break;
-                case KEY_UP_PIN:
-                    keyUp();
-                    break;
-                case KEY_DOWN_PIN:
-                    keyDown();
-                    break;
-                case KEY_ENTER_PIN:
-                    keyEnter();
-                    break;
-                default:
-                    break;
+            // Evento emulado via UART (ab_state = 0xFF → aciona a função diretamente)
+            if(event.ab_state == 0xFF) {
+                app.ihm.key_pressed = event.pin;
+                switch(event.pin) {
+                case KEY_LEFT_PIN:  keyLeft();  break;
+                case KEY_RIGHT_PIN: keyRight(); break;
+                case KEY_UP_PIN:    keyUp();    break;
+                case KEY_DOWN_PIN:  keyDown();  break;
+                case KEY_ENTER_PIN: keyEnter(); break;
+                default: break;
+                }
+            }
+            // Botão SW do encoder (ENTER): debouncing por tempo e estado
+            else if(event.pin == (uint32_t)KEY_ENTER_PIN) {
+                uint32_t now = millis();
+                if((event.ab_state != app.ihm.enc_sw_state) &&
+                   ((now - app.ihm.enc_sw_last_time) > SW_DEBOUNCING)) {
+                    app.ihm.enc_sw_state     = event.ab_state;
+                    app.ihm.enc_sw_last_time = now;
+                    if(event.ab_state == LOW) { // Pull-up ativo: LOW = pressionado
+                        app.ihm.key_pressed           = KEY_ENTER_PIN;
+                        app.ihm.last_key_pressed      = KEY_ENTER_PIN;
+                        app.ihm.last_time_key_pressed = now;
+                        keyEnter();
+                    }
+                }
+            }
+            // Encoder A/B (UP/DOWN): decodificação por tabela de quadratura
+            else if(event.pin == (uint32_t)KEY_UP_PIN || event.pin == (uint32_t)KEY_DOWN_PIN) {
+                uint8_t new_state = event.ab_state;
+                int8_t  dir       = -ENC_TABLE[(app.ihm.enc_prev_state << 2) | new_state];
+                if(dir != 0) {
+                    app.ihm.enc_dir_accum += dir;
+                    // Confirma o passo ao atingir estado FIXO (00 ou 11), completando 1 clique
+                    if(new_state == 0x0 || new_state == 0x3) {
+                        if(app.ihm.enc_dir_accum > 0) {
+                            app.ihm.key_pressed = KEY_UP_PIN;
+                            keyUp();
+                        } else if(app.ihm.enc_dir_accum < 0) {
+                            app.ihm.key_pressed = KEY_DOWN_PIN;
+                            keyDown();
+                        }
+                        app.ihm.enc_dir_accum = 0;
+                    }
+                }
+                app.ihm.enc_prev_state = new_state;
+            }
+            // Botões LEFT e RIGHT: debouncing por tempo e leitura do nível lógico
+            else {
+                if(!digitalRead((gpio_num_t)event.pin) &&
+                   (app.ihm.last_key_pressed != event.pin ||
+                    app.ihm.last_time_key_pressed + DEBOUNCING <= millis())) {
+                    app.ihm.key_pressed           = event.pin;
+                    app.ihm.last_key_pressed      = event.pin;
+                    app.ihm.last_time_key_pressed = millis();
+                    switch(event.pin) {
+                    case KEY_LEFT_PIN:  keyLeft();  break;
+                    case KEY_RIGHT_PIN: keyRight(); break;
+                    default: break;
+                    }
                 }
             }
         }
